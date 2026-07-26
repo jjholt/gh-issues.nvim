@@ -1,0 +1,4 @@
+---@class gh-issues.Ui
+---@field header string[]
+---@field comments string[]
+---@field pr_comments string[]
