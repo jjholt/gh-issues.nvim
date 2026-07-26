@@ -4,8 +4,8 @@ local config = require("gh-issues").config
 
 ---@param repository? string defaults to config.repository if not provided
 M.open_issues = function(repository)
-    local issue = require("gh-issues.issue")
-    issue.list_all(repository ~= "" and repository or config.repository)
+    local data = require("gh-issues.issue").list_all(repository ~= "" and repository or config.repository)
+    require("gh-issues.quickfix").populate(data)
 end
 ---@param repository? string defaults to config.repository if not provided
 M.open_pull_request = function(repository)

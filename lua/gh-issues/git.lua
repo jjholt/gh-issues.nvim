@@ -9,7 +9,7 @@ local function get_remote_url(remote)
         return nil
     end
 
-    local url = res.stdout:gsub("%.git$", ""):gsub("%s+$", "")
+    local url = res.stdout:gsub("%.git", ""):gsub("%s+$", "")
     return url
 end
 
@@ -38,7 +38,6 @@ function M.get_repo(remote)
     if not url then
         return nil, nil
     end
-    print(url)
     local alias = get_ssh_alias(url)
     local owner, repo = parse_remote_url(url)
 
