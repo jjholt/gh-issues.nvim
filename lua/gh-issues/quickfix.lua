@@ -13,20 +13,23 @@ vim.api.nvim_create_autocmd("FileType", {
             ui:open(item)
         end, { buffer = true })
 
-        vim.keymap.set("n", "q", function()
-            ui:close()
-        end, { buffer = true })
-
         vim.api.nvim_create_autocmd("CursorMoved", {
-            buffer = 0,
             callback = function()
-                local qf_item = vim.fn.getqflist()[vim.fn.line(".")]
-                local item = stored_items[qf_item.lnum]
-                if ui:is_open() then
-                    ui:update(item)
+                for _, win in ipairs(vim.api.nvim_list_wins()) do
+                    if vim.bo[vim.api.nvim_win_get_buf(win)].filetype == "qf" then
+                        local qf_item = vim.fn.getqflist()[vim.api.nvim_win_get_cursor(win)[1]]
+
+                        if qf_item then
+                            local item = stored_items[qf_item.lnum]
+                            if ui:is_open() then
+                                ui:update(item)
+                            end
+                        end
+                    end
                 end
             end,
         })
+        --
     end,
 })
 

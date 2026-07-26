@@ -23,6 +23,27 @@ function Ui:is_open()
     return self.win ~= nil and vim.api.nvim_win_is_valid(self.win)
 end
 
+local function create_floating_window(opts)
+    opts = opts or {}
+    local buf = vim.api.nvim_create_buf(false, true)
+
+    local width = opts.width or math.floor(vim.o.columns * 0.6)
+    local height = opts.height or math.floor(vim.o.lines * 0.8)
+
+    local win_config = {
+        relative = "editor",
+        width = width,
+        height = height,
+        col = math.floor((vim.o.columns - width) / 2),
+        row = math.floor((vim.o.lines - height) / 2),
+        style = "minimal",
+        border = "rounded",
+    }
+    local win = vim.api.nvim_open_win(buf, true, win_config)
+    return {buf = buf, win = win}
+end
+
+
 ---@param item gh-issues.Issue|gh-issues.PullRequest
 function Ui:load(item)
     self.header = {
@@ -58,20 +79,11 @@ end
 
 ---@param item gh-issues.Issue|gh-issues.PullRequest
 function Ui:open(item)
-    self.buf = vim.api.nvim_create_buf(false, true)
+    -- self.buf = vim.api.nvim_create_buf(false, true)
 
-    local width = math.floor(vim.o.columns * 0.6)
-    local height = math.floor(vim.o.lines * 0.8)
-
-    self.win = vim.api.nvim_open_win(self.buf, false, {
-        relative = "editor",
-        width = width,
-        height = height,
-        col = math.floor((vim.o.columns - width) / 2),
-        row = math.floor((vim.o.lines - height) / 2),
-        style = "minimal",
-        border = "rounded",
-    })
+    local win = create_floating_window()
+    self.buf = win.buf
+    self.win = win.win
 
     self:load(item)
     self:render(item)
@@ -90,5 +102,6 @@ function Ui:close()
         self.buf = nil
     end
 end
+
 
 return Ui
