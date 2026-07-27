@@ -3,7 +3,8 @@
 ---@field buf number|nil
 ---@field header string[]
 ---@field description string[]
----@field comments string[]
+---@field comments gh-issues.Comment[]
+---@field reviews gh-issues.Review[]
 local Ui = {}
 Ui.__index = Ui
 
@@ -40,9 +41,34 @@ local function create_floating_window(opts)
         border = "rounded",
     }
     local win = vim.api.nvim_open_win(buf, true, win_config)
-    return {buf = buf, win = win}
+    return { buf = buf, win = win }
 end
 
+---@param comment gh-issues.Comment
+---@return string[]
+local function format_comment(comment)
+    return {
+        string.format("## %s (%s)", comment.user, comment.created_at),
+        "",
+        comment.body,
+        "",
+    }
+end
+
+---@param review gh-issues.Review
+---@return string[]
+local function format_review(review)
+    local location = review.line
+        and string.format("%s:%d", review.path, review.line)
+        or review.path
+
+    return {
+        string.format("## %s (%s) %s", review.user, review.created_at, location),
+        "",
+        review.body,
+        "",
+    }
+end
 
 ---@param item gh-issues.Issue|gh-issues.PullRequest
 function Ui:load(item)
@@ -64,8 +90,14 @@ function Ui:load(item)
     self.description = vim.split(body, "\n")
     table.insert(self.description, "")
 
-    self.comments = {}
-    -- comments will be populated separately
+    self.comments = item:fetch_comments() or {}
+    self.reviews = {}
+
+    if item.fetch_reviews then
+        ---@cast item gh-issues.PullRequest
+        self.reviews = item:fetch_reviews() or {}
+    end
+
 end
 
 ---@param item gh-issues.Issue|gh-issues.PullRequest
@@ -73,7 +105,25 @@ function Ui:render(item)
     local lines = {}
     for _, line in ipairs(self.header) do table.insert(lines, line) end
     for _, line in ipairs(self.description) do table.insert(lines, line) end
-    for _, line in ipairs(self.comments) do table.insert(lines, line) end
+
+    table.insert(lines, string.format("Comments (%s)", #self.comments))
+    for _, comment in ipairs(self.comments) do
+        for _, line in ipairs(format_comment(comment)) do
+            table.insert(lines, line)
+        end
+    end
+
+    if self.reviews then
+        table.insert(lines, string.format("Reviews (%s)", #self.reviews))
+        for _, review in ipairs(self.reviews) do
+            for _, line in ipairs(format_review(review)) do
+                table.insert(lines, line)
+            end
+        end
+    end
+
+
+
     vim.api.nvim_buf_set_lines(self.buf, 0, -1, false, lines)
 end
 
@@ -83,7 +133,7 @@ function Ui:open(item)
 
     local win = create_floating_window()
 
-    vim.keymap.set('n', 'q', function() Ui:close() end, {buf = win.buf})
+    vim.keymap.set('n', 'q', function() Ui:close() end, { buf = win.buf })
 
     self.buf = win.buf
     self.win = win.win
@@ -105,6 +155,5 @@ function Ui:close()
         self.buf = nil
     end
 end
-
 
 return Ui

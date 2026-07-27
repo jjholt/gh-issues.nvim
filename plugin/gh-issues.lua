@@ -13,6 +13,6 @@ vim.api.nvim_create_user_command("GhPullRequest", function(opts)
     gh.open_pull_request(opts.args)
 end, { nargs = "?" })
 
-vim.api.nvim_create_user_command("GhCleanCache", function()
-    gh.clean_cache()
+vim.api.nvim_create_user_command("GhClearMarkers", function()
+    require("gh-issues.diagnostics").clear()
 end, {})
