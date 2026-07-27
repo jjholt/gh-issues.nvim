@@ -2,16 +2,19 @@ local M = {}
 
 local config = require("gh-issues").config
 
----@param repository? string defaults to config.repository if not provided
-M.open_issues = function(repository)
+---@param remote? string defaults to config.repository if not provided
+M.open_issues = function(remote)
     local issue = require("gh-issues.issue");
-    local data = issue.list_all(repository ~= "" and repository or config.repository)
+    local data = issue.fetch(remote ~= "" and remote or config.repository)
+    if not data then return end
     require("gh-issues.quickfix").populate(data)
 end
----@param repository? string defaults to config.repository if not provided
-M.open_pull_request = function(repository)
+---@param remote? string defaults to config.repository if not provided
+M.open_pull_request = function(remote)
     local pull_request = require("gh-issues.pull_request")
-    pull_request.list_all(repository ~= "" and repository or config.repository)
+    local data = pull_request.fetch(remote ~= "" and remote or config.repository)
+    if not data then return end
+    require("gh-issues.quickfix").populate(data)
 end
 
 M.clean_cache = function()

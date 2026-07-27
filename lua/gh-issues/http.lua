@@ -1,12 +1,15 @@
 local M = {}
+M.issue = {}
+M.pr = {}
 
 ---@param url string
 ---@param token string
 ---@return table|nil
 function M.get(url, token)
     local out = vim.system({
-        "curl", "--request", "GET",
+        "curl", "-L",
         "--header", "Accept: application/vnd.github+json",
+        "--header", "X-GitHub-Api-Version: 2026-03-10",
         "--header", "Authorization: Bearer " .. token,
         "--url", vim.trim(url),
     }):wait()
@@ -26,13 +29,5 @@ function M.get(url, token)
 end
 
 
-
----@param owner string
----@param repo string
----@return string
-function M.url_pr(owner, repo)
-    error("not yet implemented")
-    return string.format("https://api.github.com/repos/%s/%s/issues", owner, repo)
-end
 
 return M
