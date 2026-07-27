@@ -1,7 +1,7 @@
 local M = {}
 
 local ui = require("gh-issues.ui").new()
-local stored_items = {}
+local qf_entries = {}
 
 vim.api.nvim_create_autocmd("FileType", {
     pattern = "qf",
@@ -9,7 +9,7 @@ vim.api.nvim_create_autocmd("FileType", {
     callback = function()
         vim.keymap.set("n", "<CR>", function()
             local qf_item = vim.fn.getqflist()[vim.fn.line(".")]
-            local item = stored_items[qf_item.lnum]
+            local item = qf_entries[qf_item.lnum]
             ui:open(item)
         end, { buffer = true })
 
@@ -20,7 +20,7 @@ vim.api.nvim_create_autocmd("FileType", {
                         local qf_item = vim.fn.getqflist()[vim.api.nvim_win_get_cursor(win)[1]]
 
                         if qf_item then
-                            local item = stored_items[qf_item.lnum]
+                            local item = qf_entries[qf_item.lnum]
                             if ui:is_open() then
                                 ui:update(item)
                             end
@@ -35,11 +35,13 @@ vim.api.nvim_create_autocmd("FileType", {
 
 ---@param items gh-issues.Issue[]
 function M.populate(items)
-    stored_items = {}
-    for _, item in ipairs(items) do
-        stored_items[item.number] = item
+    qf_entries = {}
+    for i, item in ipairs(items) do
+        ---@type gh-issues.Issue
+        local qf_item = vim.tbl_extend("force", item, { lnum = i })
+        qf_entries[i] = qf_item
     end
-    vim.fn.setqflist(items)
+    vim.fn.setqflist(qf_entries)
     vim.cmd("copen")
 end
 

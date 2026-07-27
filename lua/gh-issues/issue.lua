@@ -38,8 +38,8 @@ local function from_api(raw)
         comments = nil,
 
         -- Fields for quickfix
-        lnum = raw.number,
-        text = string.format("[%s] %s: %s", raw.state, raw.user.login, raw.title),
+        text = string.format("%d [%s] %s: %s", raw.number, raw.state, raw.user.login, raw.title),
+        lnum = 0,
         bufnr = 0,
         valid = true,
     }

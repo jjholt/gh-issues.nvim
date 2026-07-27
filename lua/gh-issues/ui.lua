@@ -82,6 +82,9 @@ function Ui:open(item)
     -- self.buf = vim.api.nvim_create_buf(false, true)
 
     local win = create_floating_window()
+
+    vim.keymap.set('n', 'q', function() Ui:close() end, {buf = win.buf})
+
     self.buf = win.buf
     self.win = win.win
 
