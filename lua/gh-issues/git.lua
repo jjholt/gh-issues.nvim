@@ -1,4 +1,12 @@
-local M = {}
+---@class gh-issues.Repository
+---@field owner string
+---@field repo string
+---@field alias string
+---@field get_token fun(self: gh-issues.Repository): string|nil
+---@field url_pr fun(self: gh-issues.Repository): string
+---@field url_issue fun(self: gh-issues.Repository): string
+local Repository = {}
+Repository.__index = Repository
 
 ---@param remote string
 ---@return string|nil
@@ -32,23 +40,29 @@ end
 
 --- Returns the owner and repo for a given remote name
 ---@param remote string e.g. "origin", "upstream", "personal"
----@return string|nil alias, string|nil owner, string|nil repo
-function M.get_repo(remote)
+---@return gh-issues.Repository|nil
+function Repository.new(remote)
     local url = get_remote_url(remote)
     if not url then
-        return nil, nil
+        return nil
     end
     local alias = get_ssh_alias(url)
     local owner, repo = parse_remote_url(url)
 
-    return alias, owner, repo
+    if not alias or not owner or not repo then return nil end
+
+    local self = setmetatable({}, Repository)
+    self.alias = alias
+    self.owner = owner
+    self.repo = repo
+
+    return self
 end
 
---- Request token from github cli API
----@param alias string|nil
 ---@return string|nil
-function M.get_token(alias)
+function Repository:get_token()
     local config = require("gh-issues").config
+    local alias = self.alias
 
     -- Single account
     if not config.accounts then
@@ -77,4 +91,14 @@ function M.get_token(alias)
     return token
 end
 
-return M
+---@return string
+function Repository:url_issue()
+    return string.format("https://api.github.com/repos/%s/%s/issues", self.owner, self.repo)
+end
+
+---@return string
+function Repository:url_pr()
+    return string.format("https://api.github.com/repos/%s/%s/pulls", self.owner, self.repo)
+end
+
+return Repository

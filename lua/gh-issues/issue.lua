@@ -1,4 +1,6 @@
-local M = {}
+local Issue = {}
+Issue.__index = Issue
+--- Class Definitions
 ---@class gh-issues.Issue
 ---@field number number
 ---@field title string
@@ -9,6 +11,8 @@ local M = {}
 ---@field user gh-issues.User
 ---@field labels gh-issues.Label[]
 ---@field comments gh-issues.Comment[]|nil
+---@field url string
+---@field repository gh-issues.Repository
 
 ---@class gh-issues.Comment
 ---@field user string
@@ -23,96 +27,20 @@ local M = {}
 ---@field name string
 ---@field color string
 
----@param raw table
----@return gh-issues.Issue
-function M.from_api(raw)
-    return {
-        number = raw.number,
-        title = raw.title,
-        body = raw.body,
-        state = raw.state,
-        created_at = raw.created_at,
-        updated_at = raw.updated_at,
-        user = raw.user.login,
-        labels = vim.tbl_map(function(l) return l.name end, raw.labels),
-        comments = nil,
+--- End of class definitions
 
-        -- Fields for quickfix
-        text = string.format("%d [%s] %s: %s", raw.number, raw.state, raw.user.login, raw.title),
-        lnum = 0,
-        bufnr = 0,
-        valid = true,
-    }
-end
-
-
----@param owner string
----@param repo string
----@return string
-function M.url(owner, repo)
-    return string.format("https://api.github.com/repos/%s/%s/issues", owner, repo)
-end
-
----@param owner string
----@param repo string
----@param number number
----@return string
-function M.comments_url(owner, repo, number)
-    return string.format("https://api.github.com/repos/%s/%s/issues/%s/comments", owner, repo, number)
-end
-
-local cache = require("gh-issues.cache")
--- local ui = require("gh-issues.ui")
-
-
----@param remote string
----@return gh-issues.Issue[]|nil
-M.list_all = function(remote)
-    local gh = require("gh-issues.git")
-    local alias, owner, repo = gh.get_repo(remote)
-    if not repo then return nil end
-
-
-    assert(type(owner) == "string")
-    assert(type(repo) == "string")
-    local key = cache.make_key(owner, repo, "issues")
-
-    local cached = cache.get_all(key)
-    if cached then
-        vim.print("we're cached")
-        return
-    end
-
-    local http = require("gh-issues.http")
-    local url = http.issue.url(owner, repo)
-    local token = gh.get_token(alias)
-    assert(type(token) == "string")
-    local data = http.get(url, token)
-    if not data then return nil end
-
-    local issues = {}
-    for _, datum in ipairs(data) do
-        if not datum.pull_request then
-            local issue = M.from_api(datum)
-            cache.set(key, issue.number, issue)
-            table.insert(issues, issue)
-        end
-    end
-    return issues
-end
-
----@param owner string
----@param repo string
----@param alias string|nil
----@param number number
 ---@return gh-issues.Comment[]|nil
-M.get_comments = function(owner, repo, alias, number)
-    local gh = require("gh-issues.git")
-    local token = gh.get_token(alias)
+function Issue:fetch_comments()
+    if self.comments then
+        return self.comments
+    end
+
+
+    local token = self.repository:get_token()
     if not token then return nil end
 
-    local http = require("gh-issues.http")
-    local data = http.get(http.issue.comments_url(owner, repo, number), token)
+    local url = self.url .. "/comments"
+    local data = require("gh-issues.http").get(url, token)
     if not data then return nil end
 
     local comments = {}
@@ -127,5 +55,57 @@ M.get_comments = function(owner, repo, alias, number)
     return comments
 end
 
+---@param raw table
+---@param repository gh-issues.Repository
+---@return gh-issues.Issue
+function Issue.new(raw, repository)
+    local self = setmetatable({}, Issue)
+    self.number = raw.number
+    self.title = raw.title
+    self.body = raw.body
+    self.state = raw.state
+    self.created_at = raw.created_at
+    self.updated_at = raw.updated_at
+    self.user = raw.user.login
+    self.labels = vim.tbl_map(function(l) return l.name end, raw.labels)
+    self.comments = nil
+    self.url = raw.url
+    self.repository = repository
 
-return M
+
+    -- Fields for quickfix
+    self.text = string.format("%d [%s] %s: %s", raw.number, raw.state, raw.user.login, raw.title)
+    self.lnum = 0
+    self.bufnr = 0
+    self.valid = true
+
+    return self
+end
+
+---@param remote string
+---@return gh-issues.Issue[]|nil
+Issue.fetch = function(remote)
+    local repository = require("gh-issues.git").new(remote)
+    if not repository then return nil end
+
+    local url = repository:url_issue()
+    local token = repository:get_token()
+    if not token then return nil end
+
+    local data = require("gh-issues.http").get(url, token)
+    if not data then return nil end
+
+    local issues = {}
+    for _, datum in ipairs(data) do
+        if not datum.pull_request then
+            local issue = Issue.new(datum, repository)
+            table.insert(issues, issue)
+        end
+    end
+
+    return issues
+end
+
+
+
+return Issue
