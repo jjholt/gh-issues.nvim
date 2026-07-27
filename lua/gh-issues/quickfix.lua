@@ -13,6 +13,12 @@ vim.api.nvim_create_autocmd("FileType", {
             ui:open(item)
         end, { buffer = true })
 
+        local config = require("gh-issues").config
+        vim.keymap.set("n", config.keybinds.add_to_quickfix, function()
+            if not ui:is_open() then return end
+            require("gh-issues.diagnostics").set(ui.reviews)
+        end, { buffer = true })
+
         vim.api.nvim_create_autocmd("CursorMoved", {
             callback = function()
                 for _, win in ipairs(vim.api.nvim_list_wins()) do
@@ -35,7 +41,6 @@ vim.api.nvim_create_autocmd("FileType", {
 
 ---@param items gh-issues.Issue[]
 function M.populate(items)
-
     if #items == 0 then
         vim.notify("gh-issues: none found", vim.log.levels.INFO)
         return
@@ -43,9 +48,8 @@ function M.populate(items)
 
     qf_entries = {}
     for i, item in ipairs(items) do
-        ---@type gh-issues.Issue
-        local qf_item = vim.tbl_extend("force", item, { lnum = i })
-        qf_entries[i] = qf_item
+        item.lnum = i
+        qf_entries[i] = item
     end
     vim.fn.setqflist(qf_entries)
     vim.cmd("copen")

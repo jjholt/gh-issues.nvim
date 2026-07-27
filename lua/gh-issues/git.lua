@@ -92,13 +92,8 @@ function Repository:get_token()
 end
 
 ---@return string
-function Repository:url_issue()
-    return string.format("https://api.github.com/repos/%s/%s/issues", self.owner, self.repo)
-end
-
----@return string
-function Repository:url_pr()
-    return string.format("https://api.github.com/repos/%s/%s/pulls", self.owner, self.repo)
+function Repository:url()
+    return string.format("https://api.github.com/repos/%s/%s/", self.owner, self.repo)
 end
 
 return Repository
