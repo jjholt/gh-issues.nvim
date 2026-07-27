@@ -84,7 +84,7 @@ M.list_all = function(remote)
     end
 
     local http = require("gh-issues.http")
-    local url = M.url(owner, repo)
+    local url = http.issue.url(owner, repo)
     local token = gh.get_token(alias)
     assert(type(token) == "string")
     local data = http.get(url, token)

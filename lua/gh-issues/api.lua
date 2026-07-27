@@ -11,7 +11,8 @@ end
 ---@param repository? string defaults to config.repository if not provided
 M.open_pull_request = function(repository)
     local pull_request = require("gh-issues.pull_request")
-    pull_request.list_all(repository ~= "" and repository or config.repository)
+    local data = pull_request.list_all(repository ~= "" and repository or config.repository)
+    require("gh-issues.quickfix").populate(data)
 end
 
 M.clean_cache = function()

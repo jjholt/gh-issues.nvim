@@ -35,6 +35,12 @@ vim.api.nvim_create_autocmd("FileType", {
 
 ---@param items gh-issues.Issue[]
 function M.populate(items)
+
+    if #items == 0 then
+        vim.notify("gh-issues: none found", vim.log.levels.INFO)
+        return
+    end
+
     qf_entries = {}
     for i, item in ipairs(items) do
         ---@type gh-issues.Issue
