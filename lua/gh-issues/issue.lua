@@ -25,7 +25,7 @@ local M = {}
 
 ---@param raw table
 ---@return gh-issues.Issue
-local function from_api(raw)
+function M.from_api(raw)
     return {
         number = raw.number,
         title = raw.title,
@@ -92,9 +92,11 @@ M.list_all = function(remote)
 
     local issues = {}
     for _, datum in ipairs(data) do
-        local issue = from_api(datum)
-        cache.set(key, issue.number, issue)
-        table.insert(issues, issue)
+        if not datum.pull_request then
+            local issue = M.from_api(datum)
+            cache.set(key, issue.number, issue)
+            table.insert(issues, issue)
+        end
     end
     return issues
 end
@@ -110,7 +112,7 @@ M.get_comments = function(owner, repo, alias, number)
     if not token then return nil end
 
     local http = require("gh-issues.http")
-    local data = http.get(M.comments_url(owner, repo, number), token)
+    local data = http.get(http.issue.comments_url(owner, repo, number), token)
     if not data then return nil end
 
     local comments = {}
