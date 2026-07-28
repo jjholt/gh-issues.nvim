@@ -23,7 +23,7 @@ function Ui.new()
         reviews = {},
         link_locations = {},
     }, Ui)
-    keybinds.setup(self)
+
     return self
 end
 
@@ -94,7 +94,7 @@ function Ui:open(item)
 
     self.buf = win.buf
     self.win = win.win
-
+    keybinds.setup(self)
 
     self:load(item)
     self:render()

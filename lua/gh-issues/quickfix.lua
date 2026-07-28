@@ -3,44 +3,21 @@ local M = {}
 local ui = require("gh-issues.ui").new()
 local qf_entries = {}
 
-vim.api.nvim_create_autocmd("FileType", {
-    pattern = "qf",
-    once = true,
+vim.api.nvim_create_autocmd("CursorMoved", {
     callback = function()
-        vim.keymap.set("n", "<CR>", function()
-            local qf_item = vim.fn.getqflist()[vim.fn.line(".")]
-            local item = qf_entries[qf_item.lnum]
-            ui:open(item)
-        end, { buffer = true })
+        for _, win in ipairs(vim.api.nvim_list_wins()) do
+            if vim.bo[vim.api.nvim_win_get_buf(win)].filetype == "qf" then
+                local qf_item = vim.fn.getqflist()[vim.api.nvim_win_get_cursor(win)[1]]
 
-        local config = require("gh-issues").config
-        vim.keymap.set("n", config.keybinds.add_to_quickfix, function()
-            local qf_item = vim.fn.getqflist()[vim.api.nvim_win_get_cursor(0)[1]]
-            if not qf_item then return end
-            local item = qf_entries[qf_item.lnum]
-            if item and item.fetch_reviews then
-                ---@cast item gh-issues.PullRequest
-                require("gh-issues.diagnostics").set(item.reviews or {})
-            end
-        end, { buffer = true })
-
-        vim.api.nvim_create_autocmd("CursorMoved", {
-            callback = function()
-                for _, win in ipairs(vim.api.nvim_list_wins()) do
-                    if vim.bo[vim.api.nvim_win_get_buf(win)].filetype == "qf" then
-                        local qf_item = vim.fn.getqflist()[vim.api.nvim_win_get_cursor(win)[1]]
-
-                        if qf_item then
-                            local item = qf_entries[qf_item.lnum]
-                            if ui:is_open() then
-                                ui:update(item)
-                            end
-                        end
-                    end
+                if not qf_item then
+                    return
                 end
-            end,
-        })
-        --
+                local item = qf_entries[qf_item.lnum]
+                if ui:is_open() then
+                    ui:update(item)
+                end
+            end
+        end
     end,
 })
 
@@ -58,8 +35,15 @@ function M.populate_issues(items)
     end
     vim.api.nvim_exec_autocmds("QuickFixCmdPre", {})
     vim.fn.setqflist(qf_entries)
-    vim.api.nvim_exec_autocmds("QuickFixCmdPost", {})
     vim.cmd("copen")
+
+    local qf_buf = vim.api.nvim_get_current_buf()
+
+    vim.keymap.set("n", "<CR>", function()
+        local qf_item = vim.fn.getqflist()[vim.fn.line(".")]
+        local item = qf_entries[qf_item.lnum]
+        ui:open(item)
+    end, { buffer = qf_buf })
 end
 
 ---@param reviews gh-issues.Review[]
@@ -83,12 +67,8 @@ function M.populate_reviews(reviews)
     vim.fn.setqflist({}, "r")
     vim.api.nvim_exec_autocmds("QuickFixCmdPre", {})
     vim.fn.setqflist(qf_entries)
+
     vim.cmd("copen")
-    vim.api.nvim_exec_autocmds("QuickFixCmdPost", {})
-    local qf_buf = vim.fn.getqflist({ qfbufnr = 0 }).qfbufnr
-    vim.keymap.set("n", "<CR>", function()
-        vim.cmd("cc " .. vim.fn.line("."))
-    end, { buffer = qf_buf })
 end
 
 return M
