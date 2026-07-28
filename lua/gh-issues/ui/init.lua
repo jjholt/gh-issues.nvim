@@ -5,6 +5,8 @@
 ---@field description string[]
 ---@field comments gh-issues.Comment[]
 ---@field reviews gh-issues.Review[]
+---@field link_locations number[]
+---@field review_navigation_markers number[]
 local Ui = {}
 Ui.__index = Ui
 
@@ -22,6 +24,7 @@ function Ui.new()
         comments = {},
         reviews = {},
         link_locations = {},
+        review_navigation_markers = {},
     }, Ui)
 
     return self
@@ -83,7 +86,7 @@ function Ui:load(item)
 end
 
 function Ui:render()
-    self.link_locations = render.render(self.buf, self.header, self.description, self.comments, self.reviews)
+    self.link_locations, self.review_navigation_markers = render.render(self.buf, self.header, self.description, self.comments, self.reviews)
 end
 
 ---@param item gh-issues.Issue|gh-issues.PullRequest

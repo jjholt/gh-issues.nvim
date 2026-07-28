@@ -3,6 +3,7 @@
 ---@field pull_request string
 ---@field clean_cache string
 ---@field add_to_quickfix string
+---@field nav_review_comments string[]
 
 ---@class gh-issues.Config
 ---@field keybinds gh-issues.Keybinds
@@ -21,6 +22,7 @@ local default_config = {
         pull_request = "<leader>gpr",
         clean_cache = "<leader>gc",
         add_to_quickfix = "<C-a>",
+        nav_review_comments = {"]c", "[c"},
     },
     repository = "origin",
     accounts = nil

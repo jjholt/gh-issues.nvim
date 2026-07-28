@@ -1,13 +1,15 @@
 local M = {}
 
 function M.setup(ui)
+    -- Close window by pressing q
     vim.keymap.set("n", "q", function()
         ui:close()
     end, { buffer = ui.buf })
 
+    -- Inside of the UI for PRs, if you press enter, it goes to that location and closes quickfix and UI.
     vim.keymap.set("n", "<CR>", function()
         vim.notify("current ui buff is: " .. ui.buf)
-        local cursor_line = vim.api.nvim_win_get_cursor(ui.win)[1] - 1 -- 0-indexed
+        local cursor_line = vim.api.nvim_win_get_cursor(ui.win)[1] - 1
         for _, loc in ipairs(ui.link_locations) do
             if loc.lnum == cursor_line then
                 require("gh-issues.ui.diagnostics").set(ui.reviews)
@@ -19,6 +21,7 @@ function M.setup(ui)
         end
     end, { buffer = ui.buf })
 
+    -- Populate quickfix and add diagnostics to the source files. <C-a> behaviour in PR window
     local config = require("gh-issues").config
     vim.keymap.set("n", config.keybinds.add_to_quickfix, function()
         if not ui.reviews or #ui.reviews == 0 then
@@ -35,6 +38,33 @@ function M.setup(ui)
         ui:close()
 
         require("gh-issues.quickfix").populate_reviews(ui.reviews)
+    end, { buffer = ui.buf })
+
+    -- Quick navigation between review comments
+    vim.keymap.set("n", config.keybinds.nav_review_comments[1], function()
+        if not ui.review_navigation_markers or #ui.review_navigation_markers == 0 then return end
+        local cursor_line = vim.api.nvim_win_get_cursor(ui.win)[1] - 1 -- 0-indexed
+        for _, lnum in ipairs(ui.review_navigation_markers) do
+            if lnum > cursor_line then
+                vim.api.nvim_win_set_cursor(ui.win, { lnum + 1, 0 }) -- 1-indexed
+                return
+            end
+        end
+        -- wrap: go to first
+        vim.api.nvim_win_set_cursor(ui.win, { ui.review_navigation_markers[1] + 1, 0 })
+    end, { buffer = ui.buf })
+
+    vim.keymap.set("n", config.keybinds.nav_review_comments[2], function()
+        if not ui.review_navigation_markers or #ui.review_navigation_markers == 0 then return end
+        local cursor_line = vim.api.nvim_win_get_cursor(ui.win)[1] - 1 -- 0-indexed
+        for i = #ui.review_navigation_markers, 1, -1 do
+            if ui.review_navigation_markers[i] < cursor_line then
+                vim.api.nvim_win_set_cursor(ui.win, { ui.review_navigation_markers[i] + 1, 0 }) -- 1-indexed
+                return
+            end
+        end
+        -- wrap: go to last
+        vim.api.nvim_win_set_cursor(ui.win, { ui.review_navigation_markers[#ui.review_navigation_markers] + 1, 0 })
     end, { buffer = ui.buf })
 end
 

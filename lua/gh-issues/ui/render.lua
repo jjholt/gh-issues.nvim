@@ -39,10 +39,11 @@ end
 ---@param description string[]
 ---@param comments gh-issues.Comment[]
 ---@param reviews gh-issues.Review[]|nil
----@return table link_locations
+---@return table link_locations, table review_navigation_markers
 function M.render(buf, header, description, comments, reviews)
     local lines = {}
     local link_locations = {}
+    local review_navigation_markers = {}
 
     vim.api.nvim_buf_clear_namespace(buf, ns, 0, -1)
 
@@ -70,6 +71,8 @@ function M.render(buf, header, description, comments, reviews)
                 line = review.line,
             })
 
+            table.insert(review_navigation_markers, lnum)
+
             for _, line in ipairs(review_lines) do
                 table.insert(lines, line)
             end
@@ -87,7 +90,7 @@ function M.render(buf, header, description, comments, reviews)
 
 
 
-    return link_locations
+    return link_locations, review_navigation_markers
 end
 
 return M
