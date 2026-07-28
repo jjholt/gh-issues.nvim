@@ -13,12 +13,6 @@ vim.api.nvim_create_autocmd("FileType", {
             ui:open(item)
         end, { buffer = true })
 
-        local config = require("gh-issues").config
-        vim.keymap.set("n", config.keybinds.add_to_quickfix, function()
-            if not ui:is_open() then return end
-            require("gh-issues.diagnostics").set(ui.reviews)
-        end, { buffer = true })
-
         vim.api.nvim_create_autocmd("CursorMoved", {
             callback = function()
                 for _, win in ipairs(vim.api.nvim_list_wins()) do
@@ -40,7 +34,7 @@ vim.api.nvim_create_autocmd("FileType", {
 })
 
 ---@param items gh-issues.Issue[]
-function M.populate(items)
+function M.populate_issues(items)
     if #items == 0 then
         vim.notify("gh-issues: none found", vim.log.levels.INFO)
         return
@@ -51,8 +45,39 @@ function M.populate(items)
         item.lnum = i
         qf_entries[i] = item
     end
+    vim.api.nvim_exec_autocmds("QuickFixCmdPre", {})
+    vim.fn.setqflist(qf_entries)
+    vim.api.nvim_exec_autocmds("QuickFixCmdPost", {})
+    vim.cmd("copen")
+end
+
+---@param reviews gh-issues.Review[]
+function M.populate_reviews(reviews)
+    if #reviews == 0 then
+        vim.notify("gh-issues: none found", vim.log.levels.INFO)
+        return
+    end
+
+    qf_entries = {}
+
+    for _, review in ipairs(reviews) do
+        table.insert(qf_entries, {
+            filename = review.path,
+            lnum = review.line or 1,
+            col = 0,
+            text = string.format("%s: %s", review.user, review.body),
+            valid = true,
+        })
+    end
+    vim.fn.setqflist({}, "r")
+    vim.api.nvim_exec_autocmds("QuickFixCmdPre", {})
     vim.fn.setqflist(qf_entries)
     vim.cmd("copen")
+    vim.api.nvim_exec_autocmds("QuickFixCmdPost", {})
+    local qf_buf = vim.fn.getqflist({ qfbufnr = 0 }).qfbufnr
+    vim.keymap.set("n", "<CR>", function()
+        vim.cmd("cc " .. vim.fn.line("."))
+    end, { buffer = qf_buf })
 end
 
 return M

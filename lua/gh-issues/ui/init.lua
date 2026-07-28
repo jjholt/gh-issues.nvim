@@ -8,15 +8,23 @@
 local Ui = {}
 Ui.__index = Ui
 
+
+local keybinds = require("gh-issues.ui.keybinds")
+local render = require("gh-issues.ui.render")
+
 ---@return gh-issues.Ui
 function Ui.new()
-    return setmetatable({
+    local self = setmetatable({
         win = nil,
         buf = nil,
         header = {},
         description = {},
         comments = {},
+        reviews = {},
+        link_locations = {},
     }, Ui)
+    keybinds.setup(self)
+    return self
 end
 
 ---@return boolean
@@ -44,31 +52,6 @@ local function create_floating_window(opts)
     return { buf = buf, win = win }
 end
 
----@param comment gh-issues.Comment
----@return string[]
-local function format_comment(comment)
-    return {
-        string.format("## %s (%s)", comment.user, comment.created_at),
-        "",
-        comment.body,
-        "",
-    }
-end
-
----@param review gh-issues.Review
----@return string[]
-local function format_review(review)
-    local location = review.line
-        and string.format("%s:%d", review.path, review.line)
-        or review.path
-
-    return {
-        string.format("## %s (%s) %s", review.user, review.created_at, location),
-        "",
-        review.body,
-        "",
-    }
-end
 
 ---@param item gh-issues.Issue|gh-issues.PullRequest
 function Ui:load(item)
@@ -97,34 +80,10 @@ function Ui:load(item)
         ---@cast item gh-issues.PullRequest
         self.reviews = item:fetch_reviews() or {}
     end
-
 end
 
----@param item gh-issues.Issue|gh-issues.PullRequest
-function Ui:render(item)
-    local lines = {}
-    for _, line in ipairs(self.header) do table.insert(lines, line) end
-    for _, line in ipairs(self.description) do table.insert(lines, line) end
-
-    table.insert(lines, string.format("Comments (%s)", #self.comments))
-    for _, comment in ipairs(self.comments) do
-        for _, line in ipairs(format_comment(comment)) do
-            table.insert(lines, line)
-        end
-    end
-
-    if self.reviews then
-        table.insert(lines, string.format("Reviews (%s)", #self.reviews))
-        for _, review in ipairs(self.reviews) do
-            for _, line in ipairs(format_review(review)) do
-                table.insert(lines, line)
-            end
-        end
-    end
-
-
-
-    vim.api.nvim_buf_set_lines(self.buf, 0, -1, false, lines)
+function Ui:render()
+    self.link_locations = render.render(self.buf, self.header, self.description, self.comments, self.reviews)
 end
 
 ---@param item gh-issues.Issue|gh-issues.PullRequest
@@ -133,24 +92,24 @@ function Ui:open(item)
 
     local win = create_floating_window()
 
-    vim.keymap.set('n', 'q', function() Ui:close() end, { buf = win.buf })
-
     self.buf = win.buf
     self.win = win.win
 
+
     self:load(item)
-    self:render(item)
+    self:render()
 end
 
 ---@param item gh-issues.Issue|gh-issues.PullRequest
 function Ui:update(item)
     self:load(item)
-    self:render(item)
+    self:render()
 end
 
 function Ui:close()
     if self:is_open() then
         vim.api.nvim_win_close(self.win, true)
+        vim.api.nvim_buf_delete(self.buf, { force = true })
         self.win = nil
         self.buf = nil
     end
