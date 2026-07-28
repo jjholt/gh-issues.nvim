@@ -13,6 +13,17 @@ vim.api.nvim_create_autocmd("FileType", {
             ui:open(item)
         end, { buffer = true })
 
+        local config = require("gh-issues").config
+        vim.keymap.set("n", config.keybinds.add_to_quickfix, function()
+            local qf_item = vim.fn.getqflist()[vim.api.nvim_win_get_cursor(0)[1]]
+            if not qf_item then return end
+            local item = qf_entries[qf_item.lnum]
+            if item and item.fetch_reviews then
+                ---@cast item gh-issues.PullRequest
+                require("gh-issues.diagnostics").set(item.reviews or {})
+            end
+        end, { buffer = true })
+
         vim.api.nvim_create_autocmd("CursorMoved", {
             callback = function()
                 for _, win in ipairs(vim.api.nvim_list_wins()) do

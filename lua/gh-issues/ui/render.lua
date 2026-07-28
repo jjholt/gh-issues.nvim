@@ -15,7 +15,7 @@ end
 ---@param review gh-issues.Review
 ---@return string[], string, number
 local function format_review(review)
-    local location = review.line
+    local location = (review.line and review.line ~= vim.NIL)
         and string.format("%s:%d", review.path, review.line)
         or review.path
 
