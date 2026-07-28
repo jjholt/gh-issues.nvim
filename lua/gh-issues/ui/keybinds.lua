@@ -12,6 +12,7 @@ function M.setup(ui)
             if loc.lnum == cursor_line then
                 require("gh-issues.ui.diagnostics").set(ui.reviews)
                 ui:close()
+                vim.cmd("cclose")
                 vim.cmd(string.format("edit +%d %s", loc.line or 1, loc.path))
                 return
             end
