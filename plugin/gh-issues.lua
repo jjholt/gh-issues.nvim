@@ -14,5 +14,5 @@ vim.api.nvim_create_user_command("GhPullRequest", function(opts)
 end, { nargs = "?" })
 
 vim.api.nvim_create_user_command("GhClearMarkers", function()
-    require("gh-issues.diagnostics").clear()
+    gh.clear_markers()
 end, {})

@@ -17,9 +17,9 @@ M.open_pull_request = function(remote)
     require("gh-issues.quickfix").populate_issues(data)
 end
 
-M.clean_cache = function()
-    require("gh-issues.cache").invalidate_all()
-    vim.notify("Cleaning cache", vim.log.levels.INFO)
+M.clear_markers = function()
+    require("gh-issues.ui.diagnostics").clear()
+    vim.notify("Markers cleaned", vim.log.levels.INFO)
 end
 
 return M
