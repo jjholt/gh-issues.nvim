@@ -4,12 +4,15 @@ local ns = vim.api.nvim_create_namespace("gh-issues-links")
 ---@param comment gh-issues.Comment
 ---@return string[]
 local function format_comment(comment)
-    return {
+    local lines = {
         string.format("## %s (%s)", comment.user, comment.created_at),
-        "",
-        comment.body,
-        "",
+        ""
     }
+    for _, line in ipairs(vim.split(comment.body, "\n")) do
+        table.insert(lines, line)
+    end
+    table.insert(lines, "")
+    return lines
 end
 
 ---@param review gh-issues.Review
@@ -19,7 +22,7 @@ local function format_review(review)
         and string.format("%s:%d", review.path, review.line)
         or review.path
 
-    local header = string.format("%s ## %s (%s)", location,  review.user, review.created_at)
+    local header = string.format("%s ## %s (%s)", location, review.user, review.created_at)
     -- local location_col = #header - #location -- column where location starts
     local location_col = 0
 
@@ -57,7 +60,7 @@ function M.render(buf, header, description, comments, reviews)
     if reviews then
         table.insert(lines, string.format("Reviews (%s)", #reviews))
         for _, review in ipairs(reviews) do
-            local review_lines, _ , col = format_review(review)
+            local review_lines, _, col = format_review(review)
             local lnum = #lines -- 0-indexed, before inserting
 
             table.insert(link_locations, {
