@@ -7,14 +7,14 @@ M.open_issues = function(remote)
     local issue = require("gh-issues.issue");
     local data = issue.fetch(remote ~= "" and remote or config.repository)
     if not data then return end
-    require("gh-issues.quickfix").populate(data)
+    require("gh-issues.quickfix").populate_issues(data)
 end
 ---@param remote? string defaults to config.repository if not provided
 M.open_pull_request = function(remote)
     local pull_request = require("gh-issues.pull_request")
     local data = pull_request.fetch(remote ~= "" and remote or config.repository)
     if not data then return end
-    require("gh-issues.quickfix").populate(data)
+    require("gh-issues.quickfix").populate_issues(data)
 end
 
 M.clean_cache = function()
