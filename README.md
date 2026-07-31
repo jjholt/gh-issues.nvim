@@ -35,5 +35,11 @@ Optionally provide a remote:
 ```vim
 :GhPullRequest upstream
 ```
-press `<CR>` to open the ui. in the pull request window, press `<C-a>` to populate the review comments in quickfix.
+press `<CR>` to open the ui.
+<img width="1280" height="705" alt="image" src="https://github.com/user-attachments/assets/3b70a263-8bb3-4f8c-acfa-ed38053a8ac8" />
+
+In the pull request window, press `<C-a>` to populate the review comments in quickfix.
 use your cnext/cprev keybinds to quickly navigate through them and see your review comments in place
+
+Comments become diagnostics in the source files, which you can navigate either with diagnostics mapping or using cnext/cprev
+<img width="1280" height="705" alt="image" src="https://github.com/user-attachments/assets/93c56141-e81d-4398-ad70-a370bdc8707b" />
