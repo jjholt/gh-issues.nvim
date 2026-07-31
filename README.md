@@ -3,9 +3,17 @@ Easy reading of issues and pull request reviews.
 After opening the pull request reviews list, populates the comments into their respective files
 
 # Installation
-Load it with your favourite plugin manager.
-create a `gh-issues.lua` file in `~/.config/nvim/after/plugin/`
+1) Install the github CLI tool and login to the relevant accounts.
+2) Load gh-issues with your favourite plugin manager.
 
+Packer:
+```lua
+use("jjholt/gh-issues.nvim")
+```
+3) create a `gh-issues.lua` file in `~/.config/nvim/after/plugin/` or whever you keep your plugin after files.
+```lua
+require("gh-issues").setup()
+```
 ## Setup
 These are the default values
 ```lua
@@ -13,15 +21,20 @@ require("gh-issues").setup({
     keybinds = {
         issues = "<leader>gi",
         pull_request = "<leader>gpr",
-        clean_cache = "<leader>gc",
+        clear_markers = "<leader>gc",
         add_to_quickfix = "<C-a>",
+        nav_review_comments = {"]c", "[c"},
+
     },
     repository = "origin",
     accounts = nil
 })
 ```
 
-`accounts` is an optional field for if you use ssh aliases
+`accounts` is an optional field for if you use ssh aliases.
+
+For example, I use one key for personal projects and one for work project, so all my repos have an address like `personal:owner/repo.git` instead of the usual `git@github.com:owner/repo.git`.
+I can assign the alias to an account, so we can seamlessly request the token from the github cli from any of the users, 
 ```lua
     accounts = {
         personal = "my_personal_user",
