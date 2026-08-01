@@ -56,3 +56,9 @@ use your cnext/cprev keybinds to quickly navigate through them and see your revi
 
 Comments become diagnostics in the source files, which you can navigate either with diagnostics mapping or using cnext/cprev
 <img width="1280" height="705" alt="image" src="https://github.com/user-attachments/assets/93c56141-e81d-4398-ad70-a370bdc8707b" />
+
+Find other branches with changes that overlap your chosen branch  
+<img width="1280" height="705" alt="image" src="https://github.com/user-attachments/assets/a8d1db27-a50f-4656-998b-a29de2e44ef9" />
+
+Open diff highlighting the hunks (work in progress)
+<img width="1280" height="705" alt="image" src="https://github.com/user-attachments/assets/8afc629f-7aba-45ef-a1a4-9eb1d5dd9171" />
