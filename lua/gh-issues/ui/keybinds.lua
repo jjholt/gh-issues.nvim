@@ -1,4 +1,29 @@
 local M = {}
+local config = require("gh-issues").config
+local keybinds = config.keybinds
+
+M.binds = {
+    {
+        key = "q",
+        desc = "Quit",
+    },
+    {
+        key = keybinds.add_to_quickfix,
+        desc = "Populate quickfix",
+    },
+    {
+        key = keybinds.nav_review_comments[1],
+        desc = "Next review comment",
+    },
+    {
+        key = keybinds.nav_review_comments[2],
+        desc = "Previous review comment",
+    },
+    {
+        key = config.keybinds.find_conflicts,
+        desc = "Find conflicts",
+    },
+}
 
 function M.setup(ui)
     -- Close window by pressing q
@@ -6,24 +31,26 @@ function M.setup(ui)
         ui:close()
     end, { buffer = ui.buf })
 
-    -- Inside of the UI for PRs, if you press enter, it goes to that location and closes quickfix and UI.
     vim.keymap.set("n", "<CR>", function()
-        vim.notify("current ui buff is: " .. ui.buf)
         local cursor_line = vim.api.nvim_win_get_cursor(ui.win)[1] - 1
         for _, loc in ipairs(ui.link_locations) do
             if loc.lnum == cursor_line then
-                require("gh-issues.ui.diagnostics").set(ui.reviews)
-                ui:close()
-                vim.cmd("cclose")
-                vim.cmd(string.format("edit +%d %s", loc.line or 1, loc.path))
+                if loc.diff then
+                    ui:close()
+                    require("gh-issues.ui.diff").open(loc, ui.issue.branch)
+                else
+                    require("gh-issues.ui.diagnostics").set(ui.reviews)
+                    ui:close()
+                    vim.cmd("cclose")
+                    vim.cmd(string.format("edit +%d %s", loc.line or 1, loc.path))
+                end
                 return
             end
         end
     end, { buffer = ui.buf })
 
     -- Populate quickfix and add diagnostics to the source files. <C-a> behaviour in PR window
-    local config = require("gh-issues").config
-    vim.keymap.set("n", config.keybinds.add_to_quickfix, function()
+    vim.keymap.set("n", keybinds.add_to_quickfix, function()
         if not ui.reviews or #ui.reviews == 0 then
             vim.notify("gh-issues: no reviews to add", vim.log.levels.INFO)
             return
@@ -65,6 +92,39 @@ function M.setup(ui)
         end
         -- wrap: go to last
         vim.api.nvim_win_set_cursor(ui.win, { ui.review_navigation_markers[#ui.review_navigation_markers] + 1, 0 })
+    end, { buffer = ui.buf })
+
+    vim.keymap.set("n", config.keybinds.find_conflicts, function()
+        if not ui.issue then
+            vim.notify("gh-issues: no PR loaded", vim.log.levels.WARN)
+            return
+        end
+
+        vim.notify("gh-issues: searching for conflicts...", vim.log.levels.INFO)
+
+        local repository = ui.issue.repository
+        local url = repository:url()
+        local token = repository:get_token()
+        if not token then return end
+
+        local data = require("gh-issues.http").get(url .. "pulls", token)
+        if not data then return end
+
+        local PullRequest = require("gh-issues.pull_request")
+        local all_prs = {}
+        for _, datum in ipairs(data) do
+            table.insert(all_prs, PullRequest.new(datum, repository, url))
+        end
+
+        require("gh-issues.conflicts").find(ui.issue, all_prs, function(conflicting)
+            if #conflicting == 0 then
+                vim.notify("gh-issues: no conflicting PRs found", vim.log.levels.INFO)
+                return
+            end
+            ui:close()
+            vim.notify(string.format("gh-issues: found %d conflicting PR(s)", #conflicting), vim.log.levels.WARN)
+            require("gh-issues.quickfix").populate_issues(conflicting)
+        end)
     end, { buffer = ui.buf })
 end
 

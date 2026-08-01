@@ -1,6 +1,41 @@
 local M = {}
 local ns = vim.api.nvim_create_namespace("gh-issues-links")
 
+local function build_keybinds_header()
+    local keybinds = require("gh-issues.ui.keybinds")
+    local line = ""
+    for i, bind in ipairs(keybinds.binds) do
+        line = line .. bind.key .. ": " .. bind.desc
+        if i < #keybinds.binds then
+            line = line .. "  |  "
+        end
+    end
+    return {
+        line,
+        string.rep("─", vim.api.nvim_win_get_width(0)),
+    }
+end
+
+local function apply_keybinds_highlights(buf)
+    local keybinds = require("gh-issues.ui.keybinds")
+
+    vim.api.nvim_buf_set_extmark(buf, ns, 0, 0, {
+        end_row = 1,
+        hl_group = "Comment",
+        priority = 10,
+    })
+
+    local col = 0
+    for _, bind in ipairs(keybinds.binds) do
+        vim.api.nvim_buf_set_extmark(buf, ns, 0, col, {
+            end_col = col + #bind.key,
+            hl_group = "Bold",
+            priority = 100,
+        })
+        col = col + #bind.key + #(": " .. bind.desc .. "  |  ")
+    end
+end
+
 ---@param comment gh-issues.Comment
 ---@return string[]
 local function format_comment(comment)
@@ -34,18 +69,84 @@ local function format_review(review)
     }, location, location_col
 end
 
----@param buf number
+-- ---@param buf number
+-- ---@param header string[]
+-- ---@param description string[]
+-- ---@param comments gh-issues.Comment[]
+-- ---@param reviews gh-issues.Review[]|nil
+-- ---@return table link_locations, table review_navigation_markers
+-- function M.render(buf, header, description, comments, reviews)
+--     local lines = {}
+--     local link_locations = {}
+--     local review_navigation_markers = {}
+--
+--     vim.api.nvim_buf_clear_namespace(buf, ns, 0, -1)
+--
+--     local header_lines = build_keybinds_header()
+--     for _, line in ipairs(header_lines) do
+--         table.insert(lines, line)
+--     end
+--
+--     for _, line in ipairs(header) do table.insert(lines, line) end
+--     for _, line in ipairs(description) do table.insert(lines, line) end
+--
+--     table.insert(lines, string.format("Comments (%s)", #comments))
+--     for _, comment in ipairs(comments) do
+--         for _, line in ipairs(format_comment(comment)) do
+--             table.insert(lines, line)
+--         end
+--     end
+--     table.insert(lines, "")
+--
+--     if reviews then
+--         table.insert(lines, string.format("Reviews (%s)", #reviews))
+--         for _, review in ipairs(reviews) do
+--             local review_lines, _, col = format_review(review)
+--             local lnum = #lines -- 0-indexed, before inserting
+--
+--             table.insert(link_locations, {
+--                 lnum = lnum,
+--                 col = col,
+--                 path = review.path,
+--                 line = review.line,
+--             })
+--
+--             table.insert(review_navigation_markers, lnum)
+--
+--             for _, line in ipairs(review_lines) do
+--                 table.insert(lines, line)
+--             end
+--         end
+--     end
+--
+--     vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+--
+--     apply_keybinds_highlights(buf)
+--
+--     for _, loc in ipairs(link_locations) do
+--         vim.api.nvim_buf_set_extmark(buf, ns, loc.lnum, loc.col, {
+--             end_col = loc.col + #string.format("%s:%d", loc.path, loc.line or 1),
+--             hl_group = "Special",
+--         })
+--     end
+--
+--
+--
+--     return link_locations, review_navigation_markers
+-- end
+
 ---@param header string[]
 ---@param description string[]
 ---@param comments gh-issues.Comment[]
----@param reviews gh-issues.Review[]|nil
----@return table link_locations, table review_navigation_markers
-function M.render(buf, header, description, comments, reviews)
+---@param reviews gh-issues.Review[]
+---@return string[] lines, table link_locations, table review_navigation_markers
+local function render_normal(header, description, comments, reviews)
     local lines = {}
     local link_locations = {}
     local review_navigation_markers = {}
 
-    vim.api.nvim_buf_clear_namespace(buf, ns, 0, -1)
+    local keybind_lines = build_keybinds_header()
+    for _, line in ipairs(keybind_lines) do table.insert(lines, line) end
 
     for _, line in ipairs(header) do table.insert(lines, line) end
     for _, line in ipairs(description) do table.insert(lines, line) end
@@ -58,39 +159,104 @@ function M.render(buf, header, description, comments, reviews)
     end
     table.insert(lines, "")
 
-    if reviews then
-        table.insert(lines, string.format("Reviews (%s)", #reviews))
-        for _, review in ipairs(reviews) do
-            local review_lines, _, col = format_review(review)
-            local lnum = #lines -- 0-indexed, before inserting
+    table.insert(lines, string.format("Reviews (%s)", #reviews))
+    for _, review in ipairs(reviews) do
+        local review_lines, _, col = format_review(review)
+        local lnum = #lines
 
-            table.insert(link_locations, {
-                lnum = lnum,
-                col = col,
-                path = review.path,
-                line = review.line,
-            })
+        table.insert(link_locations, {
+            lnum = lnum,
+            col = col,
+            path = review.path,
+            line = review.line,
+        })
+        table.insert(review_navigation_markers, lnum)
 
-            table.insert(review_navigation_markers, lnum)
-
-            for _, line in ipairs(review_lines) do
-                table.insert(lines, line)
-            end
+        for _, line in ipairs(review_lines) do
+            table.insert(lines, line)
         end
+    end
+
+    return lines, link_locations, review_navigation_markers
+end
+
+---@param header string[]
+---@param pr gh-issues.PullRequest|gh-issues.Issue
+---@return string[] lines, table link_locations, table review_navigation_markers
+local function render_conflicts(header, pr)
+    local lines = {}
+    local link_locations = {}
+    local review_navigation_markers = {}
+
+    local keybind_lines = build_keybinds_header()
+    for _, line in ipairs(keybind_lines) do table.insert(lines, line) end
+
+    for _, line in ipairs(header) do table.insert(lines, line) end
+
+    table.insert(lines, string.format("Conflicting files (%d)", #pr.conflicting_files))
+    table.insert(lines, "")
+
+    for _, path in ipairs(pr.conflicting_files) do
+        -- find first hunk line for this file from diff data
+        local first_line = 1
+        if pr.diff and pr.diff[path] and #pr.diff[path] > 0 then
+            first_line = pr.diff[path][1][1]
+        end
+
+        -- header line: @author | created_at
+        table.insert(lines, string.format("@%s | %s", pr.user, pr.created_at))
+
+        -- navigable line: branch  path:line
+        local lnum = #lines
+        local nav_line = string.format("%s:%d  %s", path, first_line, pr.branch)
+        table.insert(lines, nav_line)
+        table.insert(lines, "")
+
+        table.insert(link_locations, {
+            lnum = lnum,
+            col = 0,
+            path = path,
+            line = first_line,
+            diff = true,
+        })
+        table.insert(review_navigation_markers, lnum)
+    end
+
+    return lines, link_locations, review_navigation_markers
+end
+
+
+---@param buf number
+---@param header string[]
+---@param description string[]
+---@param comments gh-issues.Comment[]
+---@param reviews gh-issues.Review[]|nil
+---@param pr gh-issues.PullRequest|gh-issues.Issue
+---@return table link_locations, table review_navigation_markers
+function M.render(buf, header, description, comments, reviews, pr)
+    vim.api.nvim_buf_clear_namespace(buf, ns, 0, -1)
+
+    local lines, link_locations, review_navigation_markers
+
+    if pr and pr.conflicting_files and #pr.conflicting_files > 0 then
+        lines, link_locations, review_navigation_markers = render_conflicts(header, pr)
+    else
+        lines, link_locations, review_navigation_markers = render_normal(header, description, comments, reviews or {})
     end
 
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
 
+    apply_keybinds_highlights(buf)
+
     for _, loc in ipairs(link_locations) do
+        local line = vim.api.nvim_buf_get_lines(buf, loc.lnum, loc.lnum + 1, false)[1] or ""
         vim.api.nvim_buf_set_extmark(buf, ns, loc.lnum, loc.col, {
-            end_col = loc.col + #string.format("%s:%d", loc.path, loc.line or 1),
+            end_col = math.min(loc.col + #string.format("%s:%d", loc.path, loc.line or 1), #line),
             hl_group = "Special",
         })
     end
-
-
-
     return link_locations, review_navigation_markers
 end
+
 
 return M
