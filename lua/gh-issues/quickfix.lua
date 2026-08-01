@@ -42,7 +42,11 @@ function M.populate_issues(items)
     vim.keymap.set("n", "<CR>", function()
         local qf_item = vim.fn.getqflist()[vim.fn.line(".")]
         local item = qf_entries[qf_item.lnum]
-        ui:open(item)
+        if ui:is_open() then
+            ui:update(item)
+        else
+            ui:open(item)
+        end
     end, { buffer = qf_buf })
 end
 

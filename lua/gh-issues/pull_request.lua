@@ -7,29 +7,29 @@ local Issue = require("gh-issues.issue")
 ---@class gh-issues.PullRequest: gh-issues.Issue
 ---@field reviews gh-issues.Review[]|nil
 ---@field draft boolean
----@field conflicting_files string[]|nil files that overlap with other PRs
+---@field conflicting_files string[]|nil
+---@field branch string|nil
+---@field diff table|nil
 local PullRequest = setmetatable({}, { __index = Issue })
 PullRequest.__index = PullRequest
 
 ---@class gh-issues.Review: gh-issues.Comment
----@field path string relative path to the file e.g. "lua/gh-issues/issue.lua"
----@field line number|nil line number in the file the comment applies to
----@field start_line number|nil first line for multi-line comments
----@field side string "LEFT" or "RIGHT" side of the diff
+---@field path string
+---@field line number|nil
+---@field start_line number|nil
+---@field side string
 ---@field state string
 ---@field draft boolean
 ---@field merged boolean
----@field diff_hunk string the diff context the comment was made on
----@field html_url string link to the comment on GitHub
+---@field diff_hunk string
+---@field html_url string
 ---@field assignees string[]
----@field in_reply_to_id number|nil id of the parent comment if this is a reply
----@field id number needed so other comments can reference this as in_reply_to_id
----@field fetch_reviews fun(self: gh-issues.Issue): gh-issues.Review[]|nil
+---@field in_reply_to_id number|nil
+---@field id number
 
 ---@param raw table
 ---@param repository gh-issues.Repository
 ---@param url string
----@class gh-issues.PullRequest
 function PullRequest.new(raw, repository, url)
     local self = Issue.new(raw, repository, url)
     setmetatable(self, PullRequest)
@@ -37,15 +37,16 @@ function PullRequest.new(raw, repository, url)
     self.reviews = nil
     self.draft = raw.draft
     self.conflicting_files = nil
+    self.branch = raw.head and raw.head.ref or nil
+    self.diff = nil
     return self
 end
 
 ---@param patch string
----@return number[][] list of {start_line, end_line} pairs
+---@return number[][]
 local function parse_ranges(patch)
     local ranges = {}
     for hunk in patch:gmatch("@@[^@]+@@") do
-        -- +start,count or just +start (count defaults to 1)
         local start, count = hunk:match("%+(%d+),(%d+)")
         if not start then
             start = hunk:match("%+(%d+)")
@@ -54,7 +55,6 @@ local function parse_ranges(patch)
         if start then
             local s = tonumber(start)
             local c = tonumber(count)
-            -- end is inclusive, expand by 1 on each side for adjacency
             table.insert(ranges, { s - 1, s + c })
         end
     end
@@ -67,7 +67,6 @@ end
 local function ranges_overlap(a, b)
     for _, ra in ipairs(a) do
         for _, rb in ipairs(b) do
-            -- overlap if not (ra ends before rb starts or rb ends before ra starts)
             if not (ra[2] < rb[1] or rb[2] < ra[1]) then
                 return true
             end
@@ -110,9 +109,8 @@ end
 
 ---@param a gh-issues.PRFile[]
 ---@param b gh-issues.PRFile[]
----@return string[] overlapping filenames
+---@return string[]
 function PullRequest.find_overlapping_files(a, b)
-    -- index b by filename for O(n) lookup
     local b_index = {}
     for _, file in ipairs(b) do
         b_index[file.filename] = file.ranges
@@ -123,7 +121,6 @@ function PullRequest.find_overlapping_files(a, b)
         local b_ranges = b_index[file.filename]
         if b_ranges then
             if #file.ranges == 0 or #b_ranges == 0 then
-                -- no patch info (e.g. binary files) — flag on filename match alone
                 table.insert(overlapping, file.filename)
             elseif ranges_overlap(file.ranges, b_ranges) then
                 table.insert(overlapping, file.filename)
@@ -132,6 +129,159 @@ function PullRequest.find_overlapping_files(a, b)
     end
 
     return overlapping
+end
+
+---@param callback fun(hunks: table|nil)
+function PullRequest:fetch_diff(callback)
+    if self.diff then
+        callback(self.diff)
+    end
+
+    if not self.branch then
+        vim.notify("gh-issues: no branch info on this PR", vim.log.levels.WARN)
+        callback(nil)
+        return
+    end
+
+    if not self.conflicting_files or #self.conflicting_files == 0 then
+        callback(nil)
+        return
+    end
+
+    -- blocking fetch so the diff has the latest remote state
+    vim.notify(string.format("gh-issues: fetching origin/%s...", self.branch), vim.log.levels.INFO)
+    local fetch = vim.system({ "git", "fetch", "origin", self.branch }):wait()
+    if fetch.code ~= 0 then
+        vim.notify("gh-issues: git fetch failed: " .. fetch.stderr, vim.log.levels.ERROR)
+        callback(nil)
+        return
+    end
+    vim.notify("gh-issues: fetch done: " .. (fetch.stdout ~= "" and fetch.stdout or "ok"), vim.log.levels.INFO)
+
+    local cmd = {
+        "git", "diff",
+        string.format("HEAD...origin/%s", self.branch),
+        "--",
+    }
+    for _, f in ipairs(self.conflicting_files) do
+        table.insert(cmd, f)
+    end
+
+    vim.system(cmd, {}, function(out)
+        vim.schedule(function()
+            if out.code ~= 0 then
+                vim.notify("gh-issues: git diff failed: " .. out.stderr, vim.log.levels.ERROR)
+                callback(nil)
+                return
+            end
+
+            -- parse hunks per file
+            ---@type table<string, number[][]>
+            local hunks_by_file = {}
+            local current_file = nil
+
+            for _, line in ipairs(vim.split(out.stdout, "\n")) do
+                local file = line:match("^%+%+%+ b/(.+)$")
+                if file then
+                    current_file = file
+                    hunks_by_file[current_file] = {}
+                end
+
+                if current_file then
+                    local start, count = line:match("^@@[^%+]*%+(%d+),(%d+)")
+                    if not start then
+                        start = line:match("^@@[^%+]*%+(%d+)")
+                        count = "1"
+                    end
+                    if start then
+                        local s = tonumber(start)
+                        local c = tonumber(count)
+                        table.insert(hunks_by_file[current_file], { s, s + c - 1 })
+                    end
+                end
+            end
+
+            self.diff = hunks_by_file
+            callback(hunks_by_file)
+        end)
+    end)
+end
+
+---@param callback fun(comments: gh-issues.Comment[]|nil)
+function PullRequest:fetch_comments(callback)
+    if self.comments then
+        callback(self.comments)
+        return
+    end
+
+    local token = self.repository:get_token()
+    if not token then
+        callback(nil)
+        return
+    end
+
+    local url = self.url .. string.format("issues/%d/comments", self.number)
+    require("gh-issues.http").async_get(url, token, function(data)
+        if not data then
+            callback(nil)
+            return
+        end
+
+        local comments = {}
+        for _, raw in ipairs(data) do
+            table.insert(comments, {
+                user = raw.user.login,
+                body = raw.body,
+                created_at = raw.created_at,
+            })
+        end
+
+        self.comments = comments
+        callback(comments)
+    end)
+end
+
+---@param callback fun(reviews: gh-issues.Review[]|nil)
+function PullRequest:fetch_reviews(callback)
+    if self.reviews then
+        callback(self.reviews)
+        return
+    end
+
+    local token = self.repository:get_token()
+    if not token then
+        callback(nil)
+        return
+    end
+
+    local url = self.url .. string.format("pulls/%d/comments", self.number)
+    require("gh-issues.http").async_get(url, token, function(data)
+        if not data then
+            callback(nil)
+            return
+        end
+
+        local reviews = {}
+        for _, raw in ipairs(data) do
+            table.insert(reviews, {
+                user = raw.user.login,
+                body = raw.body,
+                created_at = raw.created_at,
+                path = raw.path,
+                line = raw.line,
+                start_line = raw.start_line,
+                side = raw.side,
+                state = raw.state,
+                diff_hunk = raw.diff_hunk,
+                html_url = raw.html_url,
+                in_reply_to_id = raw.in_reply_to_id,
+                id = raw.id,
+            })
+        end
+
+        self.reviews = reviews
+        callback(reviews)
+    end)
 end
 
 ---@param remote string
@@ -144,13 +294,7 @@ PullRequest.fetch = function(remote)
     local token = repository:get_token()
     if not token then return nil end
 
-    local t0 = vim.loop.hrtime()
     local data = require("gh-issues.http").get(url .. "pulls", token)
-    local elapsed = (vim.loop.hrtime() - t0) / 1e6
-    vim.notify(string.format("gh-issues: fetch took %.0fms, got %d PRs", elapsed, data and #data or 0), vim.log.levels.INFO)
-
-
-    -- local data = require("gh-issues.http").get(url .. "pulls", token)
     if not data then return nil end
 
     local issues = {}
@@ -159,57 +303,6 @@ PullRequest.fetch = function(remote)
         table.insert(issues, issue)
     end
     return issues
-end
-
----@return gh-issues.Review[]|nil
-function PullRequest:fetch_reviews()
-    if self.reviews then
-        return self.reviews
-    end
-
-    local token = self.repository:get_token()
-    if not token then return nil end
-
-    local id = self.number
-    local url = self.url .. string.format("pulls/%d/comments", id)
-    -- local data = require("gh-issues.http").get(url, token)
-
-    local t0 = vim.loop.hrtime()
-    local data = require("gh-issues.http").get(url, token)
-    local elapsed = (vim.loop.hrtime() - t0) / 1e6
-    vim.notify(string.format("gh-issues: fetch_reviews took %.0fms, got %d reviews", elapsed, data and #data or 0), vim.log.levels.INFO)
-
-
-    if not data then return nil end
-
-    local reviews = {}
-    for _, raw in ipairs(data) do
-        local assignees = {}
-        if raw.assignees then
-            for _, user in ipairs(raw.assignees) do
-                table.insert(assignees, user.login)
-            end
-        end
-
-        table.insert(reviews, {
-            user = raw.user.login,
-            body = raw.body,
-            created_at = raw.created_at,
-            path = raw.path,
-            line = raw.line,
-            start_line = raw.start_line,
-            side = raw.side,
-            state = raw.state,
-            diff_hunk = raw.diff_hunk,
-            html_url = raw.html_url,
-            in_reply_to_id = raw.in_reply_to_id,
-            id = raw.id,
-        })
-    end
-
-    self.reviews = reviews
-
-    return reviews
 end
 
 return PullRequest

@@ -37,12 +37,15 @@ function Ui:is_open()
 end
 
 ---@param item gh-issues.Issue|gh-issues.PullRequest
-function Ui:load(item)
+---@param callback fun()
+function Ui:load(item, callback)
     self.issue = item
+
     local labels = {}
     for _, label in ipairs(item.labels) do
         table.insert(labels, label.name)
     end
+
     self.header = {
         string.format("@%s | %s", item.user, item.created_at),
         string.format("labels: %s", table.concat(labels, ", ")),
@@ -54,42 +57,84 @@ function Ui:load(item)
     config.title_pos = "center"
     vim.api.nvim_win_set_config(self.win, config)
 
-    -- local body = (item.body == nil or item.body == vim.NIL) and "" or item.body
     local body = item.body
     self.description = vim.split(body, "\n")
     table.insert(self.description, "")
 
-    self.comments = item:fetch_comments() or {}
+
+    self.comments = {}
     self.reviews = {}
 
-    if item.fetch_reviews then
-        ---@cast item gh-issues.PullRequest
-        self.reviews = item:fetch_reviews() or {}
+    -- track how many async operations are pending
+    local has_reviews = item.fetch_reviews ~= nil
+    local has_diff = item.fetch_diff ~= nil and item.conflicting_files ~= nil
+    if item.comments
+        and (not has_reviews or item.reviews)
+        and (not has_diff or item.diff)
+    then
+        self.comments = item.comments
+        self.reviews = item.reviews or {}
+        callback()
+        return
     end
-end
 
-function Ui:render()
-    self.link_locations, self.review_navigation_markers = render.render(self.buf, self.header, self.description, self.comments, self.reviews)
+    local pending = 1 + (has_reviews and 1 or 0) + (has_diff and 1 or 0) -- comments + optional
+
+    local function done()
+        pending = pending - 1
+        if pending == 0 then
+            callback()
+        end
+    end
+
+    item:fetch_comments(function(comments)
+        self.comments = comments or {}
+        done()
+    end)
+
+    if has_reviews then
+        ---@cast item gh-issues.PullRequest
+        item:fetch_reviews(function(reviews)
+            self.reviews = reviews or {}
+            done()
+        end)
+    end
+
+    if has_diff then
+        ---@cast item gh-issues.PullRequest
+        item:fetch_diff(function(hunks)
+            if hunks then
+                require("gh-issues.ui.diagnostics").set_diff(item.branch, hunks)
+            end
+            done()
+        end)
+    end
 end
 
 ---@param item gh-issues.Issue|gh-issues.PullRequest
 function Ui:open(item)
-    -- self.buf = vim.api.nvim_create_buf(false, true)
-
     local win = require("gh-issues.helpers").create_floating_window()
-
     self.buf = win.buf
     self.win = win.win
     keybinds.setup(self)
 
-    self:load(item)
-    self:render()
+    self:load(item, function()
+        if not self:is_open() then return end
+        self:render()
+    end)
 end
 
 ---@param item gh-issues.Issue|gh-issues.PullRequest
 function Ui:update(item)
-    self:load(item)
-    self:render()
+    self:load(item, function()
+        if not self:is_open() then return end
+        self:render()
+    end)
+end
+
+function Ui:render()
+    self.link_locations, self.review_navigation_markers = render.render(self.buf, self.header, self.description,
+        self.comments, self.reviews, self.issue)
 end
 
 function Ui:close()

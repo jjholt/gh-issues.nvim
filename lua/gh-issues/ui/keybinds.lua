@@ -31,15 +31,19 @@ function M.setup(ui)
         ui:close()
     end, { buffer = ui.buf })
 
-    -- Inside of the UI for PRs, if you press enter, it goes to that location and closes quickfix and UI.
     vim.keymap.set("n", "<CR>", function()
         local cursor_line = vim.api.nvim_win_get_cursor(ui.win)[1] - 1
         for _, loc in ipairs(ui.link_locations) do
             if loc.lnum == cursor_line then
-                require("gh-issues.ui.diagnostics").set(ui.reviews)
-                ui:close()
-                vim.cmd("cclose")
-                vim.cmd(string.format("edit +%d %s", loc.line or 1, loc.path))
+                if loc.diff then
+                    ui:close()
+                    require("gh-issues.ui.diff").open(loc, ui.issue.branch)
+                else
+                    require("gh-issues.ui.diagnostics").set(ui.reviews)
+                    ui:close()
+                    vim.cmd("cclose")
+                    vim.cmd(string.format("edit +%d %s", loc.line or 1, loc.path))
+                end
                 return
             end
         end
@@ -117,6 +121,7 @@ function M.setup(ui)
                 vim.notify("gh-issues: no conflicting PRs found", vim.log.levels.INFO)
                 return
             end
+            ui:close()
             vim.notify(string.format("gh-issues: found %d conflicting PR(s)", #conflicting), vim.log.levels.WARN)
             require("gh-issues.quickfix").populate_issues(conflicting)
         end)

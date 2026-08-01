@@ -100,6 +100,7 @@ end
 ---@param token string
 ---@param callback fun(data: table|nil)
 function M.async_get(url, token, callback)
+
     fetch_page(url, token, {}, callback)
 end
 
