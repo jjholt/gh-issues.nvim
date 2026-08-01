@@ -2,6 +2,7 @@
 ---@field win number|nil
 ---@field buf number|nil
 ---@field header string[]
+---@field issue gh-issues.Issue|gh-issues.PullRequest|nil
 ---@field description string[]
 ---@field comments gh-issues.Comment[]
 ---@field reviews gh-issues.Review[]
@@ -37,9 +38,14 @@ end
 
 ---@param item gh-issues.Issue|gh-issues.PullRequest
 function Ui:load(item)
+    self.issue = item
+    local labels = {}
+    for _, label in ipairs(item.labels) do
+        table.insert(labels, label.name)
+    end
     self.header = {
         string.format("@%s | %s", item.user, item.created_at),
-        string.format("labels: %s", table.concat(item.labels, ", ")),
+        string.format("labels: %s", table.concat(labels, ", ")),
         "",
     }
 
@@ -48,10 +54,8 @@ function Ui:load(item)
     config.title_pos = "center"
     vim.api.nvim_win_set_config(self.win, config)
 
+    -- local body = (item.body == nil or item.body == vim.NIL) and "" or item.body
     local body = item.body
-    if body == vim.NIL then
-        body = ""
-    end
     self.description = vim.split(body, "\n")
     table.insert(self.description, "")
 

@@ -34,7 +34,7 @@ end
 
 function Ui:load(items)
     self.items = items
-    vim.print(self)
+    -- vim.print(self)
     error("todo")
 end
 

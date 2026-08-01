@@ -68,22 +68,41 @@ end
 ---@param url string
 ---@return gh-issues.Issue
 function Issue.new(raw, repository, url)
+
+    local assignees = {}
+    for _, user in ipairs(raw.assignees) do
+        table.insert(assignees, user.login)
+    end
+
     local self = setmetatable({}, Issue)
     self.number = raw.number
     self.title = raw.title
-    self.body = raw.body
+    self.body = {raw.body == vim.NIL} and "" or raw.body
     self.state = raw.state
     self.created_at = raw.created_at
     self.updated_at = raw.updated_at
     self.user = raw.user.login
-    self.labels = vim.tbl_map(function(l) return l.name end, raw.labels)
+    self.labels = vim.tbl_map(function(l) return {name = l.name, color = l.color} end, raw.labels)
     self.comments = nil
     self.url = url
     self.repository = repository
+    self.assignees = assignees
 
+    local labels = {}
+    for _, label in ipairs(self.labels) do
+        table.insert(labels, label.name)
+    end
+    local labels_str = table.concat(labels, ", ")
+
+
+    local state = {raw.state}
+    if raw.draft then table.insert(state, "draft") end
+    if raw.merged then table.insert(state, "merged") end
+    local state_str = table.concat(state, ",")
 
     -- Fields for quickfix
-    self.text = string.format("%d [%s] %s: %s", raw.number, raw.state, raw.user.login, raw.title)
+    self.text = string.format("#%d %s: %s     (%s)", raw.number, raw.user.login, raw.title, labels_str)
+    self.text = string.format("%-60s %s", self.text, state_str)
     self.lnum = 0
     self.bufnr = 0
     self.valid = true

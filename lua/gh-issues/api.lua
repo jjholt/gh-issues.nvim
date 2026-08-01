@@ -14,8 +14,9 @@ M.open_pull_request = function(remote)
     local pull_request = require("gh-issues.pull_request")
     local data = pull_request.fetch(remote ~= "" and remote or config.repository)
     if not data then return end
-    local filtered = require("gh-issues.filter").filter(data)
-    require("gh-issues.quickfix").populate_issues(filtered)
+    -- local filtered = require("gh-issues.filter").filter(data)
+    -- require("gh-issues.quickfix").populate_issues(filtered)
+    require("gh-issues.quickfix").populate_issues(data)
 end
 
 M.clear_markers = function()

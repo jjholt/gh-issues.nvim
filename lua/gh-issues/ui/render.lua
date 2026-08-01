@@ -1,6 +1,41 @@
 local M = {}
 local ns = vim.api.nvim_create_namespace("gh-issues-links")
 
+local function build_keybinds_header()
+    local keybinds = require("gh-issues.ui.keybinds")
+    local line = ""
+    for i, bind in ipairs(keybinds.binds) do
+        line = line .. bind.key .. ": " .. bind.desc
+        if i < #keybinds.binds then
+            line = line .. "  |  "
+        end
+    end
+    return {
+        line,
+        string.rep("─", vim.api.nvim_win_get_width(0)),
+    }
+end
+
+local function apply_keybinds_highlights(buf)
+    local keybinds = require("gh-issues.ui.keybinds")
+
+    vim.api.nvim_buf_set_extmark(buf, ns, 0, 0, {
+        end_row = 1,
+        hl_group = "Comment",
+        priority = 10,
+    })
+
+    local col = 0
+    for _, bind in ipairs(keybinds.binds) do
+        vim.api.nvim_buf_set_extmark(buf, ns, 0, col, {
+            end_col = col + #bind.key,
+            hl_group = "Bold",
+            priority = 100,
+        })
+        col = col + #bind.key + #(": " .. bind.desc .. "  |  ")
+    end
+end
+
 ---@param comment gh-issues.Comment
 ---@return string[]
 local function format_comment(comment)
@@ -47,6 +82,11 @@ function M.render(buf, header, description, comments, reviews)
 
     vim.api.nvim_buf_clear_namespace(buf, ns, 0, -1)
 
+    local header_lines = build_keybinds_header()
+    for _, line in ipairs(header_lines) do
+        table.insert(lines, line)
+    end
+
     for _, line in ipairs(header) do table.insert(lines, line) end
     for _, line in ipairs(description) do table.insert(lines, line) end
 
@@ -80,6 +120,8 @@ function M.render(buf, header, description, comments, reviews)
     end
 
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+
+    apply_keybinds_highlights(buf)
 
     for _, loc in ipairs(link_locations) do
         vim.api.nvim_buf_set_extmark(buf, ns, loc.lnum, loc.col, {

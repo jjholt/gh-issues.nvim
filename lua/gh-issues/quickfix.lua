@@ -56,6 +56,7 @@ function M.populate_reviews(reviews)
     qf_entries = {}
 
     for _, review in ipairs(reviews) do
+
         table.insert(qf_entries, {
             filename = review.path,
             lnum = review.line or 1,
