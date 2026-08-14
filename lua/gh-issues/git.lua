@@ -60,9 +60,29 @@ function Repository.new(remote)
 end
 
 ---@return string|nil
+function Repository:get_username()
+    local config = require("gh-issues").config
+
+    if not config.accounts then
+        local res = vim.system({"gh", "api", "user", "--jq", ".login"}):wait()
+        if res.code ~= 0 then return nil end
+        local username = res.stdout:gsub("%s+$", "")
+        return username
+    end
+
+    local username = config.accounts[self.alias]
+    if not username then
+        vim.notify("gh-issues: no account mapped for alias " .. self.alias, vim.log.levels.ERROR)
+        return nil
+    end
+
+    return username
+
+end
+
+---@return string|nil
 function Repository:get_token()
     local config = require("gh-issues").config
-    local alias = self.alias
 
     -- Single account
     if not config.accounts then
@@ -75,11 +95,8 @@ function Repository:get_token()
     end
 
     -- Multi account
-    local username = config.accounts[alias]
-    if not username then
-        vim.notify("gh-issues: no account mapped for alias" .. alias, vim.log.levels.ERROR)
-        return nil
-    end
+    local username = self:get_username()
+    if not username then return nil end
 
     local res = vim.system({ "gh", "auth", "token", "--user", username }):wait()
     if res.code ~= 0 then

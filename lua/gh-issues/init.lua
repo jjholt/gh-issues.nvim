@@ -34,7 +34,7 @@ local default_config = {
         find_conflicts = "<leader>f",
     },
     filters = {
-        max_age_days = 14,
+        max_age_days = 7,
         -- These are OR filters:
         assigned = true,
         mentioned = true,
