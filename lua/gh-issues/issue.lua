@@ -18,6 +18,7 @@ Issue.__index = Issue
 ---@field lnum number
 ---@field bufnr number 
 ---@field valid boolean
+---@field assignees string[]
 
 ---@class gh-issues.Comment
 ---@field user string
