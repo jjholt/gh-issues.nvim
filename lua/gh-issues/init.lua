@@ -6,10 +6,17 @@
 ---@field nav_review_comments string[]
 ---@field find_conflicts string
 
+---@class gh-issues.Filters
+---@field max_age_days number
+---@field assigned boolean
+---@field mentioned boolean
+---@field sufficiently_reviwed {filter: boolean, number: integer}
+
 ---@class gh-issues.Config
 ---@field keybinds gh-issues.Keybinds
 ---@field repository string
 ---@field accounts table<string, string>|nil -- ssh alias = github username
+---@field filters gh-issues.Filters
 
 ---@class gh-issues
 ---@field config gh-issues.Config
@@ -25,6 +32,16 @@ local default_config = {
         add_to_quickfix = "<C-a>",
         nav_review_comments = { "]c", "[c" },
         find_conflicts = "<leader>f",
+    },
+    filters = {
+        max_age_days = 14,
+        -- These are OR filters:
+        assigned = true,
+        mentioned = true,
+        sufficiently_reviwed = {
+            filter = true,
+            number = 2,
+        },
     },
     repository = "origin",
     accounts = nil

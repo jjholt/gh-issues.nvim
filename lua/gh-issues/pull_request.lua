@@ -25,6 +25,7 @@ PullRequest.__index = PullRequest
 ---@field html_url string
 ---@field assignees string[]
 ---@field in_reply_to_id number|nil
+---@field requested_reviewers string[]|nil
 ---@field id number
 
 ---@param raw table
@@ -263,6 +264,11 @@ function PullRequest:fetch_reviews(callback)
 
         local reviews = {}
         for _, raw in ipairs(data) do
+            local rqst_reviewers = {}
+            for _, reviewers in ipairs(raw.requested_reviewers or {}) do
+                table.insert(rqst_reviewers, reviewers.login)
+            end
+
             table.insert(reviews, {
                 user = raw.user.login,
                 body = raw.body,
@@ -275,6 +281,7 @@ function PullRequest:fetch_reviews(callback)
                 diff_hunk = raw.diff_hunk,
                 html_url = raw.html_url,
                 in_reply_to_id = raw.in_reply_to_id,
+                requested_reviewers = rqst_reviewers,
                 id = raw.id,
             })
         end

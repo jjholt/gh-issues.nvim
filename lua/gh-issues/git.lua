@@ -1,7 +1,7 @@
 ---@class gh-issues.Repository
 ---@field owner string
 ---@field repo string
----@field alias string
+---@field alias string Your ssh alias as used in ssh. Used to find right username from config
 ---@field get_token fun(self: gh-issues.Repository): string|nil
 ---@field url_pr fun(self: gh-issues.Repository): string
 ---@field url_issue fun(self: gh-issues.Repository): string
