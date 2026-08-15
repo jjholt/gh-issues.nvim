@@ -4,12 +4,12 @@ local keybinds = config.keybinds
 
 M.binds = {
     {
-        key = "q",
-        desc = "Quit",
+        key = keybinds.initiate_review,
+        desc = "Initiate a review",
     },
     {
         key = keybinds.add_to_quickfix,
-        desc = "Populate quickfix",
+        desc = "View current review",
     },
     {
         key = keybinds.nav_review_comments[1],
@@ -22,6 +22,10 @@ M.binds = {
     {
         key = config.keybinds.find_conflicts,
         desc = "Find conflicts",
+    },
+    {
+        key = "q",
+        desc = "Quit",
     },
 }
 
@@ -56,15 +60,28 @@ function M.setup(ui)
             return
         end
         require("gh-issues.ui.diagnostics").set(ui.reviews)
-
-        local qf_buf = vim.fn.getqflist({ qfbufnr = 0 }).qfbufnr
-        if qf_buf ~= 0 and vim.api.nvim_buf_is_valid(qf_buf) then
-            vim.api.nvim_buf_delete(qf_buf, { force = true })
-        end
+        require("gh-issues.quickfix").clear()
 
         ui:close()
 
-        require("gh-issues.quickfix").populate_reviews(ui.reviews)
+        require("gh-issues.quickfix").populate_reviews(ui.reviews, true)
+    end, { buffer = ui.buf })
+
+    -- Populate quickfix with modified files, add diagnostics to the source files. <C-r> behaviour in PR window
+    vim.keymap.set("n", config.keybinds.initiate_review, function()
+        -- Populate files with existing reviews
+        if ui.reviews then
+            require("gh-issues.ui.diagnostics").set(ui.reviews)
+        end
+        require("gh-issues.quickfix").clear()
+        ui:close()
+        require("gh-issues.quickfix").populate_reviews(ui.reviews, false)
+        local issue = ui.issue
+        if issue then
+            issue:fetch_files(function(files)
+                require("gh-issues.quickfix").populate_pr_files(files)
+            end)
+        end
     end, { buffer = ui.buf })
 
     -- Quick navigation between review comments

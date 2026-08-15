@@ -1,8 +1,16 @@
 local Issue = require("gh-issues.issue")
 
+---@class gh-issues.Hunk
+---@field lnum    integer   -- start line in the new file
+---@field count   integer   -- number of lines in the new file
+---@field header  string    -- the raw @@ ... @@ context string (e.g. "function foo()")
+
 ---@class gh-issues.PRFile
 ---@field filename string
----@field ranges number[][] list of {start_line, end_line} pairs from the patch hunks
+---@field status   "added"|"modified"|"removed"|"renamed"|"copied"|"changed"|"unchanged"
+---@field additions integer
+---@field deletions integer
+---@field hunks    gh-issues.Hunk[]
 
 ---@class gh-issues.PullRequest: gh-issues.Issue
 ---@field reviews gh-issues.Review[]|nil
@@ -44,22 +52,17 @@ function PullRequest.new(raw, repository, url)
 end
 
 ---@param patch string
----@return number[][]
-local function parse_ranges(patch)
-    local ranges = {}
-    for hunk in patch:gmatch("@@[^@]+@@") do
-        local start, count = hunk:match("%+(%d+),(%d+)")
-        if not start then
-            start = hunk:match("%+(%d+)")
-            count = "1"
-        end
-        if start then
-            local s = tonumber(start)
-            local c = tonumber(count)
-            table.insert(ranges, { s - 1, s + c })
-        end
+---@return gh-issues.Hunk[]
+local function parse_hunks(patch)
+    local hunks = {}
+    for raw_start, raw_count, header in patch:gmatch("@@ %-%d+,?%d* %+(%d+),?(%d*) @@([^\n]*)") do
+        table.insert(hunks, {
+            lnum   = tonumber(raw_start),
+            count  = tonumber(raw_count ~= "" and raw_count or "1"),
+            header = vim.trim(header),
+        })
     end
-    return ranges
+    return hunks
 end
 
 ---@param a number[][]
@@ -94,18 +97,28 @@ function PullRequest:fetch_files(callback)
 
         local files = {}
         for _, raw in ipairs(data) do
-            local ranges = {}
+            local hunks = {}
             if raw.patch and raw.patch ~= vim.NIL then
-                ranges = parse_ranges(raw.patch)
+                hunks = parse_hunks(raw.patch)
             end
+
             table.insert(files, {
                 filename = raw.filename,
-                ranges = ranges,
+                hunks = hunks,
+                status = raw.status,
+                additions = raw.additions,
+                deletions = raw.deletions,
             })
         end
 
         callback(files)
     end)
+end
+
+---@param hunk gh-issues.Hunk
+---@return number[]
+local function hunk_to_range(hunk)
+    return { hunk.lnum - 1, hunk.lnum + hunk.count }
 end
 
 ---@param a gh-issues.PRFile[]
@@ -114,16 +127,17 @@ end
 function PullRequest.find_overlapping_files(a, b)
     local b_index = {}
     for _, file in ipairs(b) do
-        b_index[file.filename] = file.ranges
+        b_index[file.filename] = vim.tbl_map(hunk_to_range, file.hunks)
     end
 
     local overlapping = {}
     for _, file in ipairs(a) do
         local b_ranges = b_index[file.filename]
         if b_ranges then
-            if #file.ranges == 0 or #b_ranges == 0 then
+            local a_ranges = vim.tbl_map(hunk_to_range, file.hunks)
+            if #a_ranges == 0 or #b_ranges == 0 then
                 table.insert(overlapping, file.filename)
-            elseif ranges_overlap(file.ranges, b_ranges) then
+            elseif ranges_overlap(a_ranges, b_ranges) then
                 table.insert(overlapping, file.filename)
             end
         end

@@ -7,6 +7,7 @@
 ---@field comments gh-issues.Comment[]
 ---@field reviews gh-issues.Review[]
 ---@field link_locations number[]
+---@field modified_files any[]
 ---@field review_navigation_markers number[]
 local Ui = {}
 Ui.__index = Ui

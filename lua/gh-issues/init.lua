@@ -3,6 +3,7 @@
 ---@field pull_request string
 ---@field clear_markers string
 ---@field add_to_quickfix string
+---@field initiate_review string
 ---@field nav_review_comments string[]
 ---@field find_conflicts string
 
@@ -30,6 +31,7 @@ local default_config = {
         pull_request = "<leader>gpr",
         clear_markers = "<leader>gc",
         add_to_quickfix = "<C-a>",
+        initiate_review = "<C-r>",
         nav_review_comments = { "]c", "[c" },
         find_conflicts = "<leader>f",
     },
