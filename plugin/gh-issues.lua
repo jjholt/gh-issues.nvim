@@ -16,3 +16,11 @@ end, { nargs = "?" })
 vim.api.nvim_create_user_command("GhClearMarkers", function()
     gh.clear_markers()
 end, {})
+
+vim.api.nvim_create_user_command("GhNewReviewComment", function(args)
+    gh.new_review_comment(args)
+end, { range = true})
+
+vim.api.nvim_create_user_command("GhSubmitReview", function(opts)
+    gh.submit_review()
+end, { nargs = "?" })

@@ -8,11 +8,11 @@ function M.create_floating_window(opts)
     local height = opts.height or math.floor(vim.o.lines * 0.8)
 
     local win_config = {
-        relative = "editor",
+        relative = opts.relative or "editor",
         width = width,
         height = height,
-        col = math.floor((vim.o.columns - width) / 2),
-        row = math.floor((vim.o.lines - height) / 2),
+        col = opts.col or math.floor((vim.o.columns - width) / 2),
+        row = opts.row or math.floor((vim.o.lines - height) / 2),
         style = "minimal",
         border = "rounded",
     }

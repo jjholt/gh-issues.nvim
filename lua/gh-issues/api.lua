@@ -29,4 +29,11 @@ M.clear_markers = function()
     vim.notify("Markers cleaned", vim.log.levels.INFO)
 end
 
+M.new_review_comment = function(args)
+    require("gh-issues.review").new(args)
+end
+M.submit_review = function ()
+    vim.notify("not yet implemented", vim.log.levels.ERROR)
+end
+
 return M
