@@ -105,9 +105,32 @@ end
 
 ---@param ui gh-issues.Ui
 function ViewPR:render(ui)
+    local renderer = require("gh-issues.ui.renderer")
     local render = require("gh-issues.ui.render")
     self.link_locations, self.review_navigation_markers = render.render(ui.buf, self.header, self.description,
         self.comments, self.reviews, self.issue)
+
+    local lines, link_locations, review_navigation_markers
+
+    if self.issue.conflicting_files and #self.issue.conflicting_files > 0 then
+        lines, link_locations, review_navigation_markers = renderer.conflicts(self.header, self.issue)
+    else
+        lines, link_locations, review_navigation_markers = renderer.normal(self.header, self.description, self.comments, self.reviews or {})
+    end
+
+    vim.api.nvim_buf_set_lines(ui.buf, 0, -1, false, lines)
+
+    renderer.apply_keybinds_highlights(ui.buf)
+
+    for _, loc in ipairs(link_locations) do
+        local ns = vim.api.nvim_create_namespace("gh-issues-links")
+        local line = vim.api.nvim_buf_get_lines(ui.buf, loc.lnum, loc.lnum + 1, false)[1] or ""
+        vim.api.nvim_buf_set_extmark(ui.buf, ns, loc.lnum, loc.col, {
+            end_col = math.min(loc.col + #string.format("%s:%d", loc.path, loc.line or 1), #line),
+            hl_group = "Special",
+        })
+    end
+    return link_locations, review_navigation_markers
 end
 
 ---@param ui gh-issues.Ui

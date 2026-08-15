@@ -12,16 +12,6 @@
 local Ui = {}
 Ui.__index = Ui
 
--- -@field header string[]
--- -@field issue gh-issues.Issue|gh-issues.PullRequest|nil
--- -@field description string[]
--- -@field comments gh-issues.Comment[]
--- -@field reviews gh-issues.Review[]
--- -@field link_locations number[]
--- -@field modified_files any[]
--- -@field review_navigation_markers number[]
-
-
 local keybinds = require("gh-issues.ui.keybinds")
 -- local render = require("gh-issues.ui.render")
 

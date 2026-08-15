@@ -1,6 +1,27 @@
 local M = {}
 local formatter = require("gh-issues.ui.formatter")
 
+function M.apply_keybinds_highlights(buf)
+    local ns = vim.api.nvim_create_namespace("gh-issues-links")
+    local keybinds = require("gh-issues.ui.keybinds")
+
+    vim.api.nvim_buf_set_extmark(buf, ns, 0, 0, {
+        end_row = 1,
+        hl_group = "Comment",
+        priority = 10,
+    })
+
+    local col = 0
+    for _, bind in ipairs(keybinds.binds) do
+        vim.api.nvim_buf_set_extmark(buf, ns, 0, col, {
+            end_col = col + #bind.key,
+            hl_group = "Bold",
+            priority = 100,
+        })
+        col = col + #bind.key + #(": " .. bind.desc .. "  |  ")
+    end
+end
+
 local function build_keybinds_header()
     local keybinds = require("gh-issues.ui.keybinds")
     local line = ""
