@@ -61,14 +61,10 @@ function M.setup(ui)
         end
         require("gh-issues.ui.diagnostics").set(ui.view.reviews)
         require("gh-issues.quickfix").clear()
+        require("gh-issues.quickfix").populate_reviews(ui.view.reviews, true)
+        vim.notify(vim.inspect(ui.view.issue.base), vim.log.levels.INFO)
 
         ui:close()
-
-        require("gh-issues.quickfix").populate_reviews(ui.view.reviews, true)
-        local base = vim.fn.system(string.format("git merge-base main %s/%s", ui.view.issue.repository.remote,
-            ui.view.issue.branch)):gsub("\n", "")
-        require("gitsigns").change_base(base)
-
     end, { buffer = ui.buf })
 
     -- Populate quickfix with modified files, add diagnostics to the source files. <C-r> behaviour in PR window
@@ -78,19 +74,15 @@ function M.setup(ui)
             require("gh-issues.ui.diagnostics").set(ui.view.reviews)
         end
         require("gh-issues.quickfix").clear()
-        ui:close()
         require("gh-issues.quickfix").populate_reviews(ui.view.reviews, false)
+
         local issue = ui.view.issue
         if issue then
             issue:fetch_files(function(files)
                 require("gh-issues.quickfix").populate_pr_files(files)
             end)
         end
-        local cmd = string.format("git merge-base main %s/%s", ui.view.issue.repository.remote, ui.view.issue.branch)
-        local base = vim.fn.system(cmd):gsub("\n", "")
-        vim.print("gh-issues: changing base branch to " .. base)
-        require("gitsigns").change_base(base)
-
+        ui:close()
     end, { buffer = ui.buf })
 
     -- Quick navigation between review comments

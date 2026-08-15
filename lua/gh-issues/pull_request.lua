@@ -13,6 +13,7 @@ local Issue = require("gh-issues.issue")
 ---@field hunks    gh-issues.Hunk[]
 
 ---@class gh-issues.PullRequest: gh-issues.Issue
+---@field base string|nil
 ---@field reviews gh-issues.Review[]|nil
 ---@field draft boolean
 ---@field conflicting_files string[]|nil
@@ -47,6 +48,7 @@ function PullRequest.new(raw, repository, url)
     self.draft = raw.draft
     self.conflicting_files = nil
     self.branch = raw.head and raw.head.ref or nil
+    self.base = raw.base and raw.base.ref or nil
     self.diff = nil
     return self
 end

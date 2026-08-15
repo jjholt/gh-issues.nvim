@@ -48,7 +48,6 @@ function M.populate_pr_files(items)
         end
     end
 
-
     vim.api.nvim_exec_autocmds("QuickFixCmdPre", {})
     vim.fn.setqflist(qf_entries)
     vim.api.nvim_exec_autocmds("QuickFixCmdPost", { modeline = false })
