@@ -14,7 +14,7 @@ vim.api.nvim_create_autocmd("CursorMoved", {
                 end
                 local item = qf_entries[qf_item.lnum]
                 if ui:is_open() then
-                    ui:update(item)
+                    ui:update(nil, item)
                 end
             end
         end
@@ -48,7 +48,6 @@ function M.populate_pr_files(items)
         end
     end
 
-
     vim.api.nvim_exec_autocmds("QuickFixCmdPre", {})
     vim.fn.setqflist(qf_entries)
     vim.api.nvim_exec_autocmds("QuickFixCmdPost", { modeline = false })
@@ -56,8 +55,9 @@ function M.populate_pr_files(items)
     vim.cmd("copen")
 end
 
+---@param view gh-issues.View
 ---@param items gh-issues.Issue[]
-function M.populate_issues(items)
+function M.populate_issues(view, items)
     if #items == 0 then
         vim.notify("gh-issues: none found. Check filter settings.", vim.log.levels.INFO)
         return
@@ -78,9 +78,10 @@ function M.populate_issues(items)
         local qf_item = vim.fn.getqflist()[vim.fn.line(".")]
         local item = qf_entries[qf_item.lnum]
         if ui:is_open() then
-            ui:update(item)
+            view:update(ui, item)
         else
-            ui:open(item)
+            ui:open(view)
+            view:update(ui, item)
         end
     end, { buffer = qf_buf })
 end
