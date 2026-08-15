@@ -26,6 +26,16 @@ require("gh-issues").setup({
         nav_review_comments = {"]c", "[c"},
 
     },
+    filters = {
+        max_age_days = 7,
+        -- These are OR filters:
+        assigned = true,
+        mentioned = true,
+        sufficiently_reviwed = {
+            filter = true,
+            number = 2,
+        },
+    },
     repository = "origin",
     accounts = nil
 })
