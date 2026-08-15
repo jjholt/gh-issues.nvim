@@ -23,9 +23,6 @@ local function apply_keybinds_highlights(buf)
     end
 end
 
-
-
-
 ---@param buf number
 ---@param header string[]
 ---@param description string[]
