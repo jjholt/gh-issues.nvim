@@ -3,8 +3,8 @@ local ns = vim.api.nvim_create_namespace("gh-issues.review")
 M.ns = ns
 ---@class gh-issues.DraftComment
 ---@field path string
----@field line number
 ---@field start_line number
+---@field line number
 ---@field body string
 ---@field extmark_id number
 ---@field bufnr number
@@ -31,12 +31,12 @@ function M.new(args)
         bufnr = bufnr,
         path = path,
     }
-    require("gh-issues.review.ui").new(context, function(body)
+    require("gh-issues.review.comment_ui").new(context, function(body)
         ---@type gh-issues.DraftComment
         local comment = {
             path       = context.path,
-            line       = context.end_line,
             start_line = context.start_line,
+            line       = context.end_line,
             body       = body,
             bufnr      = context.bufnr,
             extmark_id = 0,
@@ -54,6 +54,11 @@ end
 
 function M.get_pending()
     return pending
+end
+
+---@param drafts gh-issues.DraftComment[]
+function M.confirm(drafts)
+    require("gh-issues.review.confirm_ui").new(drafts)
 end
 
 return M
