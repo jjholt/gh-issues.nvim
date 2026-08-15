@@ -65,6 +65,10 @@ function M.setup(ui)
         ui:close()
 
         require("gh-issues.quickfix").populate_reviews(ui.view.reviews, true)
+        local base = vim.fn.system(string.format("git merge-base main %s/%s", ui.view.issue.repository.remote,
+            ui.view.issue.branch)):gsub("\n", "")
+        require("gitsigns").change_base(base)
+
     end, { buffer = ui.buf })
 
     -- Populate quickfix with modified files, add diagnostics to the source files. <C-r> behaviour in PR window
@@ -82,6 +86,11 @@ function M.setup(ui)
                 require("gh-issues.quickfix").populate_pr_files(files)
             end)
         end
+        local cmd = string.format("git merge-base main %s/%s", ui.view.issue.repository.remote, ui.view.issue.branch)
+        local base = vim.fn.system(cmd):gsub("\n", "")
+        vim.print("gh-issues: changing base branch to " .. base)
+        require("gitsigns").change_base(base)
+
     end, { buffer = ui.buf })
 
     -- Quick navigation between review comments
@@ -108,7 +117,8 @@ function M.setup(ui)
             end
         end
         -- wrap: go to last
-        vim.api.nvim_win_set_cursor(ui.win, { ui.view.review_navigation_markers[#ui.view.review_navigation_markers] + 1, 0 })
+        vim.api.nvim_win_set_cursor(ui.win,
+            { ui.view.review_navigation_markers[#ui.view.review_navigation_markers] + 1, 0 })
     end, { buffer = ui.buf })
 
     vim.keymap.set("n", config.keybinds.find_conflicts, function()

@@ -22,6 +22,7 @@
 ---@class gh-issues
 ---@field config gh-issues.Config
 ---@field setup fun(opts?: gh-issues.Config)
+---@field requires string[]
 local M = {}
 
 ---@type gh-issues.Config
@@ -61,5 +62,9 @@ M.setup = function(opts)
     vim.keymap.set("n", kb.pull_request, api.open_pull_request, { desc = "Populate pull requests into quickfix list" })
     vim.keymap.set("n", kb.clear_markers, api.clear_markers, { desc = "Clear all diagnostic markers from source" })
 end
+
+M.requires = {
+    "lewis6991/gitsigns.nvim",
+}
 
 return M

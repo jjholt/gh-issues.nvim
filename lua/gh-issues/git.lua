@@ -1,5 +1,6 @@
 ---@class gh-issues.Repository
 ---@field owner string
+---@field remote string
 ---@field repo string
 ---@field alias string Your ssh alias as used in ssh. Used to find right username from config
 ---@field get_token fun(self: gh-issues.Repository): string|nil
@@ -55,6 +56,7 @@ function Repository.new(remote)
     self.alias = alias
     self.owner = owner
     self.repo = repo
+    self.remote = remote
 
     return self
 end
